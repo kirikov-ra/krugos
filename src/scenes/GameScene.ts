@@ -18,6 +18,9 @@ export class GameScene extends Phaser.Scene {
   private startX = 0;
   private startY = 0;
 
+  private currentPuzzleStr: string = '';
+  private currentSolutionStr: string = '';
+
   private isGameOver: boolean = false;
   private timeRemaining: number = 300;
   private timerText!: Phaser.GameObjects.Text;
@@ -27,6 +30,16 @@ export class GameScene extends Phaser.Scene {
   private heartImages: Phaser.GameObjects.Image[] = [];
 
   constructor() { super('GameScene'); }
+
+  init(data: any) {
+    if (data && data.puzzle && data.solution) {
+      this.currentPuzzleStr = data.puzzle;
+      this.currentSolutionStr = data.solution;
+    } else {
+      this.currentPuzzleStr = '';
+      this.currentSolutionStr = '';
+    }
+  }
 
   create() {
     const { width, height } = this.scale;
@@ -75,6 +88,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private generateBallTextures() {
+    if (this.textures.exists('krug_1')) return;
+
     for (let id = 1; id <= 9; id++) {
       const graphics = this.make.graphics({ x: 0, y: 0 });
       graphics.fillStyle(KRUGOS_COLOR_MAP[id], 1);
@@ -94,7 +109,6 @@ export class GameScene extends Phaser.Scene {
     }
 
     const lifeSize = this.cellSize * 0.6;
-    
     const lifeFilledG = this.make.graphics({ x: 0, y: 0 });
     lifeFilledG.fillStyle(0xff1744, 1); 
     lifeFilledG.fillRect(0, 0, lifeSize, lifeSize);
@@ -108,9 +122,28 @@ export class GameScene extends Phaser.Scene {
     lifeOutlineG.destroy();
   }
 
+  private initSudoku(difficulty: 'easy' | 'medium' | 'hard' | 'expert') {
+    if (!this.currentPuzzleStr || !this.currentSolutionStr) {
+      const sudoku = getSudoku(difficulty);
+      this.currentPuzzleStr = sudoku.puzzle;
+      this.currentSolutionStr = sudoku.solution;
+    }
+
+    const parse = (str: string) => {
+      const res: string[][] = [];
+      for (let i = 0; i < 9; i++) res.push(str.substring(i * 9, i * 9 + 9).split(''));
+      return res;
+    };
+
+    this.board = parse(this.currentPuzzleStr);
+    this.initialBoard = JSON.parse(JSON.stringify(this.board));
+    this.solution = parse(this.currentSolutionStr);
+    this.currentBalls = Array.from({ length: 9 }, () => new Array(9).fill(null));
+  }
+
   private formatTime(seconds: number): string {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
+    const m = Math.floor(Math.max(0, seconds) / 60);
+    const s = Math.max(0, seconds) % 60;
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   }
 
@@ -118,7 +151,11 @@ export class GameScene extends Phaser.Scene {
     if (this.isGameOver) return;
     this.timeRemaining--;
     this.timerText.setText(this.formatTime(this.timeRemaining));
-    if (this.timeRemaining <= 0) this.loseGame('time');
+    if (this.timeRemaining <= 0) {
+      this.isGameOver = true;
+      this.timerEvent.remove();
+      this.showGameOverModal('time');
+    }
   }
 
   private subtractLife() {
@@ -137,38 +174,90 @@ export class GameScene extends Phaser.Scene {
             onComplete: () => {
                 heartToUpdate.setTexture('heart_outline');
                 heartToUpdate.setAlpha(1);
+                if (this.lives <= 0) {
+                    this.showGameOverModal('no_lives');
+                }
             }
         });
     }
 
     if (this.lives <= 0) {
-      this.loseGame('no_lives');
+      this.isGameOver = true;
+      this.timerEvent.remove();
     }
   }
 
-  private loseGame(reason: 'time' | 'no_lives') {
-    this.isGameOver = true;
-    this.timerEvent.remove();
+  private showGameOverModal(reason: 'time' | 'no_lives') {
+    const { width, height } = this.scale;
 
-    if (reason === 'time') {
-      this.timerText.setText('00:00');
-      alert('Время вышло! Вы проиграли.');
-    } else if (reason === 'no_lives') {
-      alert('Жизни закончились! Вы проиграли.');
+    let filledCount = 0;
+    let emptyCount = 0;
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (this.board[r][c] !== '-') filledCount++;
+        else emptyCount++;
+      }
     }
-  }
 
-  private initSudoku(difficulty: 'easy' | 'medium' | 'hard' | 'expert') {
-    const sudoku = getSudoku(difficulty);
-    const parse = (str: string) => {
-      const res: string[][] = [];
-      for (let i = 0; i < 9; i++) res.push(str.substring(i * 9, i * 9 + 9).split(''));
-      return res;
-    };
-    this.board = parse(sudoku.puzzle);
-    this.initialBoard = JSON.parse(JSON.stringify(this.board));
-    this.solution = parse(sudoku.solution);
-    this.currentBalls = Array.from({ length: 9 }, () => new Array(9).fill(null));
+    this.add.rectangle(0, 0, width, height, 0x000000, 0.7)
+      .setOrigin(0).setDepth(100).setInteractive();
+
+    const modalW = width * 0.85;
+    const modalH = 420;
+    const modalX = width / 2;
+    const modalY = height / 2;
+
+    const bg = this.add.graphics().setDepth(101);
+    bg.fillStyle(0xffffff, 1);
+    bg.fillRoundedRect(modalX - modalW / 2, modalY - modalH / 2, modalW, modalH, 16);
+    bg.lineStyle(4, 0x000000, 1);
+    bg.strokeRoundedRect(modalX - modalW / 2, modalY - modalH / 2, modalW, modalH, 16);
+
+    const titleText = reason === 'time' ? 'ВРЕМЯ ВЫШЛО!' : 'ЖИЗНИ ЗАКОНЧИЛИСЬ!';
+    this.add.text(modalX, modalY - modalH / 2 + 40, titleText, {
+      fontSize: '26px', color: '#d32f2f', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(102);
+
+    const statsText = 
+      `Осталось жизней: ${this.lives}\n` +
+      `Время: ${this.formatTime(this.timeRemaining)}\n` +
+      `Заполнено клеток: ${filledCount}\n` +
+      `Осталось пустых: ${emptyCount}`;
+
+    this.add.text(modalX, modalY - 40, statsText, {
+      fontSize: '20px', color: '#333', align: 'center', lineSpacing: 10
+    }).setOrigin(0.5).setDepth(102);
+
+    const btnW = modalW * 0.8;
+    const btnH = 55;
+    const btnRestartY = modalY + 60;
+    
+    const btnRestartBg = this.add.rectangle(modalX, btnRestartY, btnW, btnH, 0xe0e0e0)
+      .setDepth(102).setStrokeStyle(2, 0x000000).setInteractive();
+    this.add.text(modalX, btnRestartY, 'ПОВТОРИТЬ ПАРТИЮ', {
+      fontSize: '18px', color: '#000', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(103);
+
+    btnRestartBg.on('pointerover', () => btnRestartBg.setFillStyle(0xd0d0d0));
+    btnRestartBg.on('pointerout', () => btnRestartBg.setFillStyle(0xe0e0e0));
+    btnRestartBg.on('pointerdown', () => {
+      this.scene.restart({ puzzle: this.currentPuzzleStr, solution: this.currentSolutionStr });
+    });
+
+    const btnNewY = modalY + 140;
+    const btnNewBg = this.add.rectangle(modalX, btnNewY, btnW, btnH, 0x4dd0e1)
+      .setDepth(102).setStrokeStyle(2, 0x000000).setInteractive();
+    this.add.text(modalX, btnNewY, 'НОВАЯ ИГРА', {
+      fontSize: '18px', color: '#000', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(103);
+
+    btnNewBg.on('pointerover', () => btnNewBg.setFillStyle(0x26c6da));
+    btnNewBg.on('pointerout', () => btnNewBg.setFillStyle(0x4dd0e1));
+    btnNewBg.on('pointerdown', () => {
+      this.currentPuzzleStr = '';
+      this.currentSolutionStr = '';
+      this.scene.restart({}); 
+    });
   }
 
   private drawKrugosBoard() {
@@ -219,7 +308,7 @@ export class GameScene extends Phaser.Scene {
 
   private handleCellClick(row: number, col: number, rect: Phaser.GameObjects.Rectangle) {
     if (this.isGameOver) return;
-    if (this.initialBoard[row][col] !== '-') return; // Если ячейка заблокирована (изначально или после верного ответа)
+    if (this.initialBoard[row][col] !== '-') return; 
     
     if (this.selectedCell) this.selectedCell.rect.setFillStyle(this.selectedCell.rect.fillColor === 0xf9f9f9 ? 0xf9f9f9 : 0xffffff);
     rect.setFillStyle(0xd1e9ff);
@@ -230,9 +319,7 @@ export class GameScene extends Phaser.Scene {
     const x = this.startX + col * this.cellSize + this.cellSize / 2;
     const y = this.startY + row * this.cellSize + this.cellSize / 2;
     
-    if (this.currentBalls[row][col]) {
-      this.currentBalls[row][col]?.destroy();
-    }
+    if (this.currentBalls[row][col]) this.currentBalls[row][col]?.destroy();
     
     const isValid = state === 'initial' || state === 'success';
     const textureName = isValid ? `krug_${id}` : `krug_error_${id}`;
@@ -240,20 +327,9 @@ export class GameScene extends Phaser.Scene {
 
     if (state === 'success') {
       ball.setScale(0);
-      this.tweens.add({ 
-        targets: ball, 
-        scale: 1, 
-        duration: 500,
-        ease: 'Back.out' 
-      });
+      this.tweens.add({ targets: ball, scale: 1, duration: 500, ease: 'Back.out' });
     } else if (state === 'error') {
-      this.tweens.add({ 
-        targets: ball, 
-        x: x + 5, 
-        duration: 50, 
-        yoyo: true, 
-        repeat: 3 
-      });
+      this.tweens.add({ targets: ball, x: x + 5, duration: 50, yoyo: true, repeat: 3 });
     } else {
       ball.setScale(1);
     }
@@ -288,14 +364,11 @@ export class GameScene extends Phaser.Scene {
     for (let row = 0; row < 9; row++) {
       for (let col = 0; col < 9; col++) {
         const val = this.board[row][col];
-        
         if (this.initialBoard[row][col] !== '-') continue;
         
         if (val !== '-') {
           const id = parseInt(val, 10);
-          
           if (this.selectedCell && this.selectedCell.row === row && this.selectedCell.col === col) continue;
-          
           this.renderBall(row, col, id, 'error-idle');
         }
       }
