@@ -45,7 +45,6 @@ export class GameScene extends Phaser.Scene {
 
   private generateBallTextures() {
     for (let id = 1; id <= 9; id++) {
-      // Обычная текстура
       const graphics = this.make.graphics({ x: 0, y: 0 });
       graphics.fillStyle(KRUGOS_COLOR_MAP[id], 1);
       graphics.fillCircle(this.cellSize / 2, this.cellSize / 2, this.cellSize * 0.4);
@@ -54,7 +53,6 @@ export class GameScene extends Phaser.Scene {
       graphics.generateTexture(`krug_${id}`, this.cellSize, this.cellSize);
       graphics.destroy();
 
-      // Текстура ошибки (с красной обводкой)
       const graphicsError = this.make.graphics({ x: 0, y: 0 });
       graphicsError.fillStyle(0xff1744, 0.9); 
       graphicsError.fillCircle(this.cellSize / 2, this.cellSize / 2, this.cellSize * 0.4);
@@ -83,20 +81,40 @@ export class GameScene extends Phaser.Scene {
       for (let col = 0; col < 9; col++) {
         const x = this.startX + col * this.cellSize;
         const y = this.startY + row * this.cellSize;
+        
         const isDark = (Math.floor(row / 3) + Math.floor(col / 3)) % 2 === 1;
 
         const rect = this.add.rectangle(x, y, this.cellSize, this.cellSize, isDark ? 0xf9f9f9 : 0xffffff)
-          .setOrigin(0).setStrokeStyle(1, 0x000000, 0.1).setInteractive();
+          .setOrigin(0)
+          .setStrokeStyle(1, 0x000000, 0.1)
+          .setInteractive();
 
         rect.on('pointerdown', () => this.handleCellClick(row, col, rect));
 
         const val = this.board[row][col];
         if (val !== '-') {
-          // Стартовые шары всегда валидны, анимация им не нужна
           this.renderBall(row, col, parseInt(val, 10), true, false);
         }
       }
     }
+
+    const gridGraphics = this.add.graphics();
+    gridGraphics.lineStyle(3, 0x000000, 0.6);
+
+    const totalSize = 9 * this.cellSize;
+
+    for (let i = 0; i <= 9; i += 3) {
+      const offset = i * this.cellSize;
+
+      gridGraphics.moveTo(this.startX + offset, this.startY);
+      gridGraphics.lineTo(this.startX + offset, this.startY + totalSize);
+
+      gridGraphics.moveTo(this.startX, this.startY + offset);
+      gridGraphics.lineTo(this.startX + totalSize, this.startY + offset);
+    }
+    
+    gridGraphics.strokePath();
+    gridGraphics.setDepth(10); 
   }
 
   private drawSelectionPanel() {
@@ -148,10 +166,8 @@ export class GameScene extends Phaser.Scene {
     if (!this.selectedCell) return;
     const { row, col } = this.selectedCell;
 
-    // 1. Сразу обновляем логический стейт
     this.board[row][col] = id.toString();
     
-    // 2. Перерисовываем всю доску для снятия "призрачных ошибок"
     this.refreshBoardVisuals();
     
     this.checkWinCondition();
@@ -162,14 +178,12 @@ export class GameScene extends Phaser.Scene {
       for (let col = 0; col < 9; col++) {
         const val = this.board[row][col];
         
-        // Пропускаем ячейки сгенерированные игрой
         if (this.initialBoard[row][col] !== '-') continue;
 
         if (val !== '-') {
           const id = parseInt(val, 10);
           const isValid = this.isMoveValid(row, col, id);
           
-          // Анимируем только ту ячейку, в которую сейчас кликнул игрок
           const animate = this.selectedCell !== null && this.selectedCell.row === row && this.selectedCell.col === col;
           
           this.renderBall(row, col, id, isValid, animate);
@@ -182,36 +196,19 @@ export class GameScene extends Phaser.Scene {
     const isComplete = this.board.every(row => row.every(cell => cell !== '-'));
     if (!isComplete) return;
 
-    const isCorrect = JSON.stringify(this.board) === JSON.stringify(this.solution);
-    if (isCorrect) alert('Вы победили в Krugos!');
+    
+    const hasErrors = this.board.some((row, r) => 
+      row.some((cell, c) => cell !== '-' && cell !== this.solution[r][c])
+    );
+
+    if (!hasErrors) {
+      alert('Вы победили в Krugos!');
+    }
   }
 
-  // --- Валидация ходов ---
   private isMoveValid(row: number, col: number, id: number): boolean {
     const valueStr = id.toString();
     
-    // 1. Проверяем СТРОКУ
-    for (let c = 0; c < 9; c++) {
-      if (c !== col && this.board[row][c] === valueStr) return false;
-    }
-
-    // 2. Проверяем СТОЛБЕЦ
-    for (let r = 0; r < 9; r++) {
-      if (r !== row && this.board[r][col] === valueStr) return false;
-    }
-
-    // 3. Проверяем КВАДРАТ 3x3
-    const startRow = Math.floor(row / 3) * 3;
-    const startCol = Math.floor(col / 3) * 3;
-    
-    for (let r = startRow; r < startRow + 3; r++) {
-      for (let c = startCol; c < startCol + 3; c++) {
-        if (!(r === row && c === col) && this.board[r][c] === valueStr) {
-          return false;
-        }
-      }
-    }
-
-    return true; 
+    return this.solution[row][col] === valueStr;
   }
 }
