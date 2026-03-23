@@ -13,15 +13,17 @@ export class GameScene extends Phaser.Scene {
   private currentBalls: (Phaser.GameObjects.Image | null)[][] = [];
   private selectedCell: { row: number, col: number, rect: Phaser.GameObjects.Rectangle } | null = null;
 
-  private readonly gridSize = 9;
   private cellSize = 0;
   private startX = 0;
   private startY = 0;
 
   private isGameOver: boolean = false;
-  private timeRemaining: number = 300; // 5 минут (в секундах)
+  private timeRemaining: number = 300; // 5 минут
   private timerText!: Phaser.GameObjects.Text;
   private timerEvent!: Phaser.Time.TimerEvent;
+
+  private lives: number = 3;
+  private heartImages: Phaser.GameObjects.Image[] = [];
 
   constructor() { super('GameScene'); }
 
@@ -37,6 +39,8 @@ export class GameScene extends Phaser.Scene {
 
     this.isGameOver = false;
     this.timeRemaining = 300;
+    this.lives = 3;
+    this.heartImages = [];
 
     this.generateBallTextures();
     this.initSudoku('easy');
@@ -47,6 +51,14 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
+    const livesY = height * 0.05;
+    const heartSpacing = this.cellSize * 0.8;
+    for (let i = 0; i < 3; i++) {
+      const x = this.startX + i * heartSpacing;
+      const heart = this.add.image(x, livesY, 'heart_filled').setOrigin(0, 0.5);
+      this.heartImages.push(heart);
+    }
+
     this.timerText = this.add.text(this.startX + this.cellSize * 9, height * 0.05, this.formatTime(this.timeRemaining), {
       fontSize: `${Math.floor(this.cellSize * 0.5)}px`,
       color: '#d32f2f',
@@ -54,48 +66,11 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(1, 0.5);
 
     this.timerEvent = this.time.addEvent({
-      delay: 1000,
-      callback: this.onTimerTick,
-      callbackScope: this,
-      loop: true
+      delay: 1000, callback: this.onTimerTick, callbackScope: this, loop: true
     });
 
     this.drawKrugosBoard();
     this.drawSelectionPanel();
-  }
-
-  private formatTime(seconds: number): string {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  }
-
-  private onTimerTick() {
-    if (this.isGameOver) return;
-    
-    this.timeRemaining--;
-    this.timerText.setText(this.formatTime(this.timeRemaining));
-
-    if (this.timeRemaining === 30) {
-      this.tweens.add({
-        targets: this.timerText,
-        scale: 1.2,
-        duration: 500,
-        yoyo: true,
-        repeat: -1
-      });
-    }
-
-    if (this.timeRemaining <= 0) {
-      this.loseGame();
-    }
-  }
-
-  private loseGame() {
-    this.isGameOver = true;
-    this.timerEvent.remove();
-    this.timerText.setText('00:00');
-    alert('Время вышло! Вы проиграли.');
   }
 
   private generateBallTextures() {
@@ -115,6 +90,70 @@ export class GameScene extends Phaser.Scene {
       graphicsError.strokeCircle(this.cellSize / 2, this.cellSize / 2, this.cellSize * 0.4);
       graphicsError.generateTexture(`krug_error_${id}`, this.cellSize, this.cellSize);
       graphicsError.destroy();
+    }
+
+    const lifeSize = this.cellSize * 0.6;
+    
+    const lifeFilledG = this.make.graphics({ x: 0, y: 0 });
+    lifeFilledG.fillStyle(0xff1744, 1); 
+    lifeFilledG.fillRect(0, 0, lifeSize, lifeSize);
+    lifeFilledG.generateTexture('heart_filled', lifeSize, lifeSize);
+    lifeFilledG.destroy();
+
+    const lifeOutlineG = this.make.graphics({ x: 0, y: 0 });
+    lifeOutlineG.lineStyle(3, 0x9e9e9e, 1); 
+    lifeOutlineG.strokeRect(1.5, 1.5, lifeSize - 3, lifeSize - 3);
+    lifeOutlineG.generateTexture('heart_outline', lifeSize, lifeSize);
+    lifeOutlineG.destroy();
+  }
+
+  private formatTime(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }
+
+  private onTimerTick() {
+    if (this.isGameOver) return;
+    this.timeRemaining--;
+    this.timerText.setText(this.formatTime(this.timeRemaining));
+    if (this.timeRemaining <= 0) this.loseGame('time');
+  }
+
+  private subtractLife() {
+    if (this.isGameOver) return;
+    
+    this.lives--;
+    
+    const heartToUpdate = this.heartImages[this.lives];
+    if (heartToUpdate) {
+        this.tweens.add({
+            targets: heartToUpdate,
+            alpha: 0,
+            duration: 100,
+            yoyo: true,
+            repeat: 2,
+            onComplete: () => {
+                heartToUpdate.setTexture('heart_outline');
+                heartToUpdate.setAlpha(1);
+            }
+        });
+    }
+
+    if (this.lives <= 0) {
+      this.loseGame('no_lives');
+    }
+  }
+
+  private loseGame(reason: 'time' | 'no_lives') {
+    this.isGameOver = true;
+    this.timerEvent.remove();
+
+    if (reason === 'time') {
+      this.timerText.setText('00:00');
+      alert('Время вышло! Вы проиграли.');
+    } else if (reason === 'no_lives') {
+      alert('Жизни закончились! Вы проиграли.');
     }
   }
 
@@ -153,7 +192,6 @@ export class GameScene extends Phaser.Scene {
     const gridGraphics = this.add.graphics();
     gridGraphics.lineStyle(3, 0x000000, 0.6);
     const totalSize = 9 * this.cellSize;
-
     for (let i = 0; i <= 9; i += 3) {
       const offset = i * this.cellSize;
       gridGraphics.moveTo(this.startX + offset, this.startY);
@@ -161,7 +199,6 @@ export class GameScene extends Phaser.Scene {
       gridGraphics.moveTo(this.startX, this.startY + offset);
       gridGraphics.lineTo(this.startX + totalSize, this.startY + offset);
     }
-    
     gridGraphics.strokePath();
     gridGraphics.setDepth(10); 
   }
@@ -170,12 +207,9 @@ export class GameScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const panelY = height * 0.85;
     const spacing = width / 10;
-
     for (let id = 1; id <= 9; id++) {
       const x = spacing * id;
-      const btn = this.add.image(x, panelY, `krug_${id}`)
-        .setInteractive().setScale(0.9);
-      
+      const btn = this.add.image(x, panelY, `krug_${id}`).setInteractive().setScale(0.9);
       btn.on('pointerover', () => btn.setScale(1.1));
       btn.on('pointerout', () => btn.setScale(0.9));
       btn.on('pointerdown', () => this.placeKrugos(id));
@@ -185,9 +219,7 @@ export class GameScene extends Phaser.Scene {
   private handleCellClick(row: number, col: number, rect: Phaser.GameObjects.Rectangle) {
     if (this.isGameOver) return;
     if (this.initialBoard[row][col] !== '-') return;
-    
     if (this.selectedCell) this.selectedCell.rect.setFillStyle(this.selectedCell.rect.fillColor === 0xf9f9f9 ? 0xf9f9f9 : 0xffffff);
-    
     rect.setFillStyle(0xd1e9ff);
     this.selectedCell = { row, col, rect };
   }
@@ -195,12 +227,9 @@ export class GameScene extends Phaser.Scene {
   private renderBall(row: number, col: number, id: number, isValid: boolean, animate: boolean) {
     const x = this.startX + col * this.cellSize + this.cellSize / 2;
     const y = this.startY + row * this.cellSize + this.cellSize / 2;
-    
     if (this.currentBalls[row][col]) this.currentBalls[row][col]?.destroy();
-    
     const textureName = isValid ? `krug_${id}` : `krug_error_${id}`;
     const ball = this.add.image(x, y, textureName);
-
     if (animate) {
       if (!isValid) {
         this.tweens.add({ targets: ball, x: x + 5, duration: 50, yoyo: true, repeat: 3 });
@@ -209,7 +238,6 @@ export class GameScene extends Phaser.Scene {
         this.tweens.add({ targets: ball, scale: 1, duration: 100 });
       }
     }
-    
     this.currentBalls[row][col] = ball;
   }
 
@@ -218,6 +246,12 @@ export class GameScene extends Phaser.Scene {
     const { row, col } = this.selectedCell;
 
     this.board[row][col] = id.toString();
+    
+    const isValidMove = this.isMoveValid(row, col, id);
+    if (!isValidMove) {
+        this.subtractLife();
+    }
+
     this.refreshBoardVisuals();
     this.checkWinCondition();
   }
@@ -227,7 +261,6 @@ export class GameScene extends Phaser.Scene {
       for (let col = 0; col < 9; col++) {
         const val = this.board[row][col];
         if (this.initialBoard[row][col] !== '-') continue;
-
         if (val !== '-') {
           const id = parseInt(val, 10);
           const isValid = this.isMoveValid(row, col, id);
@@ -249,12 +282,7 @@ export class GameScene extends Phaser.Scene {
     if (!hasErrors) {
       this.isGameOver = true;
       this.timerEvent.remove();
-      
-      this.timerText.setColor('#388e3c');
-      this.tweens.killTweensOf(this.timerText);
-      this.timerText.setScale(1.2);
-      
-      alert(`Вы победили в Krugos! Осталось времени: ${this.formatTime(this.timeRemaining)}`);
+      alert(`Вы победили в Krugos! Оставшиеся жизни: ${this.lives}`);
     }
   }
 
