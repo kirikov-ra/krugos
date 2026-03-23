@@ -13,12 +13,13 @@ export class GameScene extends Phaser.Scene {
   private currentBalls: (Phaser.GameObjects.Image | null)[][] = [];
   private selectedCell: { row: number, col: number, rect: Phaser.GameObjects.Rectangle } | null = null;
 
+  private readonly gridSize = 9;
   private cellSize = 0;
   private startX = 0;
   private startY = 0;
 
   private isGameOver: boolean = false;
-  private timeRemaining: number = 300; // 5 минут
+  private timeRemaining: number = 300;
   private timerText!: Phaser.GameObjects.Text;
   private timerEvent!: Phaser.Time.TimerEvent;
 
@@ -184,7 +185,7 @@ export class GameScene extends Phaser.Scene {
 
         const val = this.board[row][col];
         if (val !== '-') {
-          this.renderBall(row, col, parseInt(val, 10), true, false);
+          this.renderBall(row, col, parseInt(val, 10), 'initial');
         }
       }
     }
@@ -218,38 +219,65 @@ export class GameScene extends Phaser.Scene {
 
   private handleCellClick(row: number, col: number, rect: Phaser.GameObjects.Rectangle) {
     if (this.isGameOver) return;
-    if (this.initialBoard[row][col] !== '-') return;
+    if (this.initialBoard[row][col] !== '-') return; // Если ячейка заблокирована (изначально или после верного ответа)
+    
     if (this.selectedCell) this.selectedCell.rect.setFillStyle(this.selectedCell.rect.fillColor === 0xf9f9f9 ? 0xf9f9f9 : 0xffffff);
     rect.setFillStyle(0xd1e9ff);
     this.selectedCell = { row, col, rect };
   }
 
-  private renderBall(row: number, col: number, id: number, isValid: boolean, animate: boolean) {
+  private renderBall(row: number, col: number, id: number, state: 'initial' | 'success' | 'error' | 'error-idle') {
     const x = this.startX + col * this.cellSize + this.cellSize / 2;
     const y = this.startY + row * this.cellSize + this.cellSize / 2;
-    if (this.currentBalls[row][col]) this.currentBalls[row][col]?.destroy();
+    
+    if (this.currentBalls[row][col]) {
+      this.currentBalls[row][col]?.destroy();
+    }
+    
+    const isValid = state === 'initial' || state === 'success';
     const textureName = isValid ? `krug_${id}` : `krug_error_${id}`;
     const ball = this.add.image(x, y, textureName);
-    if (animate) {
-      if (!isValid) {
-        this.tweens.add({ targets: ball, x: x + 5, duration: 50, yoyo: true, repeat: 3 });
-      } else {
-        ball.setAlpha(0.9).setScale(0.8);
-        this.tweens.add({ targets: ball, scale: 1, duration: 100 });
-      }
+
+    if (state === 'success') {
+      ball.setScale(0);
+      this.tweens.add({ 
+        targets: ball, 
+        scale: 1, 
+        duration: 500,
+        ease: 'Back.out' 
+      });
+    } else if (state === 'error') {
+      this.tweens.add({ 
+        targets: ball, 
+        x: x + 5, 
+        duration: 50, 
+        yoyo: true, 
+        repeat: 3 
+      });
+    } else {
+      ball.setScale(1);
     }
+    
     this.currentBalls[row][col] = ball;
   }
 
   private placeKrugos(id: number) {
     if (this.isGameOver || !this.selectedCell) return;
-    const { row, col } = this.selectedCell;
+    const { row, col, rect } = this.selectedCell;
 
     this.board[row][col] = id.toString();
-    
     const isValidMove = this.isMoveValid(row, col, id);
-    if (!isValidMove) {
-        this.subtractLife();
+
+    if (isValidMove) {
+      this.initialBoard[row][col] = id.toString(); 
+      this.renderBall(row, col, id, 'success');
+      
+      const isDark = (Math.floor(row / 3) + Math.floor(col / 3)) % 2 === 1;
+      rect.setFillStyle(isDark ? 0xf9f9f9 : 0xffffff);
+      this.selectedCell = null;
+    } else {
+      this.subtractLife();
+      this.renderBall(row, col, id, 'error');
     }
 
     this.refreshBoardVisuals();
@@ -260,12 +288,15 @@ export class GameScene extends Phaser.Scene {
     for (let row = 0; row < 9; row++) {
       for (let col = 0; col < 9; col++) {
         const val = this.board[row][col];
+        
         if (this.initialBoard[row][col] !== '-') continue;
+        
         if (val !== '-') {
           const id = parseInt(val, 10);
-          const isValid = this.isMoveValid(row, col, id);
-          const animate = this.selectedCell !== null && this.selectedCell.row === row && this.selectedCell.col === col;
-          this.renderBall(row, col, id, isValid, animate);
+          
+          if (this.selectedCell && this.selectedCell.row === row && this.selectedCell.col === col) continue;
+          
+          this.renderBall(row, col, id, 'error-idle');
         }
       }
     }
