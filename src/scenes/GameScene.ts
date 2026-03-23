@@ -190,12 +190,18 @@ export class GameScene extends Phaser.Scene {
   private showGameOverModal(reason: 'time' | 'no_lives') {
     const { width, height } = this.scale;
 
-    let filledCount = 0;
+    let userFilledCount = 0;
     let emptyCount = 0;
+    
     for (let r = 0; r < 9; r++) {
       for (let c = 0; c < 9; c++) {
-        if (this.board[r][c] !== '-') filledCount++;
-        else emptyCount++;
+        const isStartingCell = this.currentPuzzleStr[r * 9 + c] !== '-';
+        
+        if (this.board[r][c] === '-') {
+          emptyCount++;
+        } else if (!isStartingCell) {
+          userFilledCount++;
+        }
       }
     }
 
@@ -221,7 +227,7 @@ export class GameScene extends Phaser.Scene {
     const statsText = 
       `Осталось жизней: ${this.lives}\n` +
       `Время: ${this.formatTime(this.timeRemaining)}\n` +
-      `Заполнено клеток: ${filledCount}\n` +
+      `Заполнено клеток: ${userFilledCount}\n` +
       `Осталось пустых: ${emptyCount}`;
 
     this.add.text(modalX, modalY - 40, statsText, {
