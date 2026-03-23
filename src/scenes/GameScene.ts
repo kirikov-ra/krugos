@@ -45,6 +45,7 @@ export class GameScene extends Phaser.Scene {
 
   private generateBallTextures() {
     for (let id = 1; id <= 9; id++) {
+      // Обычная текстура
       const graphics = this.make.graphics({ x: 0, y: 0 });
       graphics.fillStyle(KRUGOS_COLOR_MAP[id], 1);
       graphics.fillCircle(this.cellSize / 2, this.cellSize / 2, this.cellSize * 0.4);
@@ -52,6 +53,15 @@ export class GameScene extends Phaser.Scene {
       graphics.strokeCircle(this.cellSize / 2, this.cellSize / 2, this.cellSize * 0.4);
       graphics.generateTexture(`krug_${id}`, this.cellSize, this.cellSize);
       graphics.destroy();
+
+      // Текстура ошибки (с красной обводкой)
+      const graphicsError = this.make.graphics({ x: 0, y: 0 });
+      graphicsError.fillStyle(0xff1744, 0.9); 
+      graphicsError.fillCircle(this.cellSize / 2, this.cellSize / 2, this.cellSize * 0.4);
+      graphicsError.lineStyle(3, 0x000000, 0.4); 
+      graphicsError.strokeCircle(this.cellSize / 2, this.cellSize / 2, this.cellSize * 0.4);
+      graphicsError.generateTexture(`krug_error_${id}`, this.cellSize, this.cellSize);
+      graphicsError.destroy();
     }
   }
 
@@ -82,7 +92,8 @@ export class GameScene extends Phaser.Scene {
 
         const val = this.board[row][col];
         if (val !== '-') {
-          this.renderBall(row, col, parseInt(val, 10), false);
+          // Стартовые шары всегда валидны, анимация им не нужна
+          this.renderBall(row, col, parseInt(val, 10), true, false);
         }
       }
     }
@@ -112,25 +123,59 @@ export class GameScene extends Phaser.Scene {
     this.selectedCell = { row, col, rect };
   }
 
-  private renderBall(row: number, col: number, id: number, isUserAction: boolean) {
+  private renderBall(row: number, col: number, id: number, isValid: boolean, animate: boolean) {
     const x = this.startX + col * this.cellSize + this.cellSize / 2;
     const y = this.startY + row * this.cellSize + this.cellSize / 2;
     
     if (this.currentBalls[row][col]) this.currentBalls[row][col]?.destroy();
     
-    const ball = this.add.image(x, y, `krug_${id}`);
-    if (isUserAction) ball.setAlpha(0.9).setScale(0.8).setData('tween', this.tweens.add({
-      targets: ball, scale: 1, duration: 100
-    }));
+    const textureName = isValid ? `krug_${id}` : `krug_error_${id}`;
+    const ball = this.add.image(x, y, textureName);
+
+    if (animate) {
+      if (!isValid) {
+        this.tweens.add({ targets: ball, x: x + 5, duration: 50, yoyo: true, repeat: 3 });
+      } else {
+        ball.setAlpha(0.9).setScale(0.8);
+        this.tweens.add({ targets: ball, scale: 1, duration: 100 });
+      }
+    }
     
     this.currentBalls[row][col] = ball;
-    this.board[row][col] = id.toString();
   }
 
   private placeKrugos(id: number) {
     if (!this.selectedCell) return;
-    this.renderBall(this.selectedCell.row, this.selectedCell.col, id, true);
+    const { row, col } = this.selectedCell;
+
+    // 1. Сразу обновляем логический стейт
+    this.board[row][col] = id.toString();
+    
+    // 2. Перерисовываем всю доску для снятия "призрачных ошибок"
+    this.refreshBoardVisuals();
+    
     this.checkWinCondition();
+  }
+
+  private refreshBoardVisuals() {
+    for (let row = 0; row < 9; row++) {
+      for (let col = 0; col < 9; col++) {
+        const val = this.board[row][col];
+        
+        // Пропускаем ячейки сгенерированные игрой
+        if (this.initialBoard[row][col] !== '-') continue;
+
+        if (val !== '-') {
+          const id = parseInt(val, 10);
+          const isValid = this.isMoveValid(row, col, id);
+          
+          // Анимируем только ту ячейку, в которую сейчас кликнул игрок
+          const animate = this.selectedCell !== null && this.selectedCell.row === row && this.selectedCell.col === col;
+          
+          this.renderBall(row, col, id, isValid, animate);
+        }
+      }
+    }
   }
 
   private checkWinCondition() {
@@ -139,5 +184,34 @@ export class GameScene extends Phaser.Scene {
 
     const isCorrect = JSON.stringify(this.board) === JSON.stringify(this.solution);
     if (isCorrect) alert('Вы победили в Krugos!');
+  }
+
+  // --- Валидация ходов ---
+  private isMoveValid(row: number, col: number, id: number): boolean {
+    const valueStr = id.toString();
+    
+    // 1. Проверяем СТРОКУ
+    for (let c = 0; c < 9; c++) {
+      if (c !== col && this.board[row][c] === valueStr) return false;
+    }
+
+    // 2. Проверяем СТОЛБЕЦ
+    for (let r = 0; r < 9; r++) {
+      if (r !== row && this.board[r][col] === valueStr) return false;
+    }
+
+    // 3. Проверяем КВАДРАТ 3x3
+    const startRow = Math.floor(row / 3) * 3;
+    const startCol = Math.floor(col / 3) * 3;
+    
+    for (let r = startRow; r < startRow + 3; r++) {
+      for (let c = startCol; c < startCol + 3; c++) {
+        if (!(r === row && c === col) && this.board[r][c] === valueStr) {
+          return false;
+        }
+      }
+    }
+
+    return true; 
   }
 }
