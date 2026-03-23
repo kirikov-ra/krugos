@@ -18,6 +18,11 @@ export class GameScene extends Phaser.Scene {
   private startX = 0;
   private startY = 0;
 
+  private isGameOver: boolean = false;
+  private timeRemaining: number = 300; // 5 минут (в секундах)
+  private timerText!: Phaser.GameObjects.Text;
+  private timerEvent!: Phaser.Time.TimerEvent;
+
   constructor() { super('GameScene'); }
 
   create() {
@@ -30,6 +35,9 @@ export class GameScene extends Phaser.Scene {
     this.startX = (width - this.cellSize * 9) / 2;
     this.startY = height * 0.15;
 
+    this.isGameOver = false;
+    this.timeRemaining = 300;
+
     this.generateBallTextures();
     this.initSudoku('easy');
 
@@ -39,8 +47,55 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
+    this.timerText = this.add.text(this.startX + this.cellSize * 9, height * 0.05, this.formatTime(this.timeRemaining), {
+      fontSize: `${Math.floor(this.cellSize * 0.5)}px`,
+      color: '#d32f2f',
+      fontStyle: 'bold'
+    }).setOrigin(1, 0.5);
+
+    this.timerEvent = this.time.addEvent({
+      delay: 1000,
+      callback: this.onTimerTick,
+      callbackScope: this,
+      loop: true
+    });
+
     this.drawKrugosBoard();
     this.drawSelectionPanel();
+  }
+
+  private formatTime(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }
+
+  private onTimerTick() {
+    if (this.isGameOver) return;
+    
+    this.timeRemaining--;
+    this.timerText.setText(this.formatTime(this.timeRemaining));
+
+    if (this.timeRemaining === 30) {
+      this.tweens.add({
+        targets: this.timerText,
+        scale: 1.2,
+        duration: 500,
+        yoyo: true,
+        repeat: -1
+      });
+    }
+
+    if (this.timeRemaining <= 0) {
+      this.loseGame();
+    }
+  }
+
+  private loseGame() {
+    this.isGameOver = true;
+    this.timerEvent.remove();
+    this.timerText.setText('00:00');
+    alert('Время вышло! Вы проиграли.');
   }
 
   private generateBallTextures() {
@@ -81,13 +136,10 @@ export class GameScene extends Phaser.Scene {
       for (let col = 0; col < 9; col++) {
         const x = this.startX + col * this.cellSize;
         const y = this.startY + row * this.cellSize;
-        
         const isDark = (Math.floor(row / 3) + Math.floor(col / 3)) % 2 === 1;
 
         const rect = this.add.rectangle(x, y, this.cellSize, this.cellSize, isDark ? 0xf9f9f9 : 0xffffff)
-          .setOrigin(0)
-          .setStrokeStyle(1, 0x000000, 0.1)
-          .setInteractive();
+          .setOrigin(0).setStrokeStyle(1, 0x000000, 0.1).setInteractive();
 
         rect.on('pointerdown', () => this.handleCellClick(row, col, rect));
 
@@ -100,15 +152,12 @@ export class GameScene extends Phaser.Scene {
 
     const gridGraphics = this.add.graphics();
     gridGraphics.lineStyle(3, 0x000000, 0.6);
-
     const totalSize = 9 * this.cellSize;
 
     for (let i = 0; i <= 9; i += 3) {
       const offset = i * this.cellSize;
-
       gridGraphics.moveTo(this.startX + offset, this.startY);
       gridGraphics.lineTo(this.startX + offset, this.startY + totalSize);
-
       gridGraphics.moveTo(this.startX, this.startY + offset);
       gridGraphics.lineTo(this.startX + totalSize, this.startY + offset);
     }
@@ -134,7 +183,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleCellClick(row: number, col: number, rect: Phaser.GameObjects.Rectangle) {
+    if (this.isGameOver) return;
     if (this.initialBoard[row][col] !== '-') return;
+    
     if (this.selectedCell) this.selectedCell.rect.setFillStyle(this.selectedCell.rect.fillColor === 0xf9f9f9 ? 0xf9f9f9 : 0xffffff);
     
     rect.setFillStyle(0xd1e9ff);
@@ -163,13 +214,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private placeKrugos(id: number) {
-    if (!this.selectedCell) return;
+    if (this.isGameOver || !this.selectedCell) return;
     const { row, col } = this.selectedCell;
 
     this.board[row][col] = id.toString();
-    
     this.refreshBoardVisuals();
-    
     this.checkWinCondition();
   }
 
@@ -177,15 +226,12 @@ export class GameScene extends Phaser.Scene {
     for (let row = 0; row < 9; row++) {
       for (let col = 0; col < 9; col++) {
         const val = this.board[row][col];
-        
         if (this.initialBoard[row][col] !== '-') continue;
 
         if (val !== '-') {
           const id = parseInt(val, 10);
           const isValid = this.isMoveValid(row, col, id);
-          
           const animate = this.selectedCell !== null && this.selectedCell.row === row && this.selectedCell.col === col;
-          
           this.renderBall(row, col, id, isValid, animate);
         }
       }
@@ -196,19 +242,24 @@ export class GameScene extends Phaser.Scene {
     const isComplete = this.board.every(row => row.every(cell => cell !== '-'));
     if (!isComplete) return;
 
-    
     const hasErrors = this.board.some((row, r) => 
       row.some((cell, c) => cell !== '-' && cell !== this.solution[r][c])
     );
 
     if (!hasErrors) {
-      alert('Вы победили в Krugos!');
+      this.isGameOver = true;
+      this.timerEvent.remove();
+      
+      this.timerText.setColor('#388e3c');
+      this.tweens.killTweensOf(this.timerText);
+      this.timerText.setScale(1.2);
+      
+      alert(`Вы победили в Krugos! Осталось времени: ${this.formatTime(this.timeRemaining)}`);
     }
   }
 
   private isMoveValid(row: number, col: number, id: number): boolean {
     const valueStr = id.toString();
-    
     return this.solution[row][col] === valueStr;
   }
 }
