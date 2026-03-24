@@ -52,7 +52,7 @@ export class GameScene extends Phaser.Scene {
     this.startY = height * 0.15;
 
     this.isGameOver = false;
-    this.timeRemaining = 300;
+    this.timeRemaining = 1200;
     this.lives = 3;
     this.heartImages = [];
 
@@ -187,7 +187,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private showGameOverModal(reason: 'time' | 'no_lives') {
+  private showGameOverModal(reason: 'time' | 'no_lives' | 'win') {
     const { width, height } = this.scale;
 
     let userFilledCount = 0;
@@ -196,7 +196,6 @@ export class GameScene extends Phaser.Scene {
     for (let r = 0; r < 9; r++) {
       for (let c = 0; c < 9; c++) {
         const isStartingCell = this.currentPuzzleStr[r * 9 + c] !== '-';
-        
         if (this.board[r][c] === '-') {
           emptyCount++;
         } else if (!isStartingCell) {
@@ -219,16 +218,31 @@ export class GameScene extends Phaser.Scene {
     bg.lineStyle(4, 0x000000, 1);
     bg.strokeRoundedRect(modalX - modalW / 2, modalY - modalH / 2, modalW, modalH, 16);
 
-    const titleText = reason === 'time' ? 'ВРЕМЯ ВЫШЛО!' : 'ЖИЗНИ ЗАКОНЧИЛИСЬ!';
+    let titleText = '';
+    let titleColor = '';
+    if (reason === 'win') {
+      titleText = 'ВЫ ПОБЕДИЛИ!';
+      titleColor = '#388e3c';
+    } else if (reason === 'time') {
+      titleText = 'ВРЕМЯ ВЫШЛО!';
+      titleColor = '#d32f2f';
+    } else {
+      titleText = 'ЖИЗНИ ЗАКОНЧИЛИСЬ!';
+      titleColor = '#d32f2f';
+    }
+
     this.add.text(modalX, modalY - modalH / 2 + 40, titleText, {
-      fontSize: '26px', color: '#d32f2f', fontStyle: 'bold'
+      fontSize: '26px', color: titleColor, fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(102);
 
-    const statsText = 
+    let statsText = 
       `Осталось жизней: ${this.lives}\n` +
       `Время: ${this.formatTime(this.timeRemaining)}\n` +
-      `Заполнено клеток: ${userFilledCount}\n` +
-      `Осталось пустых: ${emptyCount}`;
+      `Заполнено клеток: ${userFilledCount}`;
+
+    if (reason !== 'win') {
+      statsText += `\nОсталось пустых: ${emptyCount}`;
+    }
 
     this.add.text(modalX, modalY - 40, statsText, {
       fontSize: '20px', color: '#333', align: 'center', lineSpacing: 10
@@ -392,7 +406,7 @@ export class GameScene extends Phaser.Scene {
     if (!hasErrors) {
       this.isGameOver = true;
       this.timerEvent.remove();
-      alert(`Вы победили в Krugos! Оставшиеся жизни: ${this.lives}`);
+      this.showGameOverModal('win');
     }
   }
 
