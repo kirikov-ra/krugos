@@ -6,14 +6,14 @@ const KRUGOS_COLOR_MAP: Record<number, number> = {
   5: 0x64b5f6, 6: 0x9575cd, 7: 0xfff176, 8: 0xffb74d, 9: 0x9e9e9e 
 };
 
+const STORAGE_KEY = 'krugos_save_data';
+
 export class GameScene extends Phaser.Scene {
   private board: string[][] = [];
   private initialBoard: string[][] = [];
   private solution: string[][] = [];
   private currentBalls: (Phaser.GameObjects.Image | null)[][] = [];
-  
   private cellRects: Phaser.GameObjects.Rectangle[][] = [];
-  
   private selectedCell: { row: number, col: number } | null = null;
   private highlightedId: number | null = null;
 
@@ -28,7 +28,7 @@ export class GameScene extends Phaser.Scene {
   private isGameOver: boolean = false;
   private isPaused: boolean = false; 
   
-  private timeRemaining: number = 300;
+  private timeRemaining: number = 1200;
   private timerText!: Phaser.GameObjects.Text;
   private timerEvent!: Phaser.Time.TimerEvent;
 
@@ -37,17 +37,42 @@ export class GameScene extends Phaser.Scene {
 
   private selectionButtons: Record<number, Phaser.GameObjects.Image> = {};
   private selectionCounters: Record<number, Phaser.GameObjects.Text> = {};
+  
+  private gameDifficulty: 'easy' | 'medium' | 'hard' | 'expert' = 'easy';
 
   constructor() { super('GameScene'); }
 
-  init(data: { puzzle?: string; solution?: string } = {}) {
-    if (data && data.puzzle && data.solution) {
+  init(data: { difficulty?: 'easy' | 'medium' | 'hard' | 'expert'; loadFromStorage?: boolean; puzzle?: string; solution?: string } = {}) {
+    if (data.loadFromStorage) {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const saveState = JSON.parse(saved);
+          this.currentPuzzleStr = saveState.currentPuzzleStr;
+          this.currentSolutionStr = saveState.currentSolutionStr;
+          this.board = JSON.parse(JSON.stringify(saveState.board));
+          this.initialBoard = JSON.parse(JSON.stringify(saveState.board)); 
+          this.lives = saveState.lives;
+          this.timeRemaining = saveState.timeRemaining;
+          this.gameDifficulty = saveState.difficulty;
+          return; 
+        } catch (e) {
+          console.error("Save load failed:", e);
+        }
+      }
+    }
+
+    if (data.puzzle && data.solution) {
       this.currentPuzzleStr = data.puzzle;
       this.currentSolutionStr = data.solution;
     } else {
       this.currentPuzzleStr = '';
       this.currentSolutionStr = '';
     }
+
+    this.gameDifficulty = data.difficulty || 'easy';
+    this.lives = 3;
+    this.timeRemaining = 1200;
   }
 
   create() {
@@ -62,8 +87,6 @@ export class GameScene extends Phaser.Scene {
 
     this.isGameOver = false;
     this.isPaused = false;
-    this.timeRemaining = 1200;
-    this.lives = 3;
     this.heartImages = [];
     this.selectionButtons = {};
     this.selectionCounters = {};
@@ -73,12 +96,10 @@ export class GameScene extends Phaser.Scene {
     this.cellRects = Array.from({ length: 9 }, () => new Array(9).fill(null));
 
     this.generateBallTextures();
-    this.initSudoku('easy');
+    this.initSudoku(this.gameDifficulty);
 
     this.add.text(width / 2, height * 0.05, 'KRUGOS', {
-      fontSize: `${Math.floor(this.cellSize * 0.8)}px`,
-      color: '#333',
-      fontStyle: 'bold'
+      fontSize: `${Math.floor(this.cellSize * 0.8)}px`, color: '#333', fontStyle: 'bold'
     }).setOrigin(0.5);
 
     const pauseBtnSize = this.cellSize * 0.6;
@@ -97,14 +118,13 @@ export class GameScene extends Phaser.Scene {
     const heartSpacing = this.cellSize * 0.8;
     for (let i = 0; i < 3; i++) {
       const x = livesXStart + i * heartSpacing;
-      const heart = this.add.image(x, uiY, 'heart_filled').setOrigin(0, 0.5);
+      const texture = this.lives > i ? 'heart_filled' : 'heart_outline'; 
+      const heart = this.add.image(x, uiY, texture).setOrigin(0, 0.5);
       this.heartImages.push(heart);
     }
 
     this.timerText = this.add.text(this.startX + this.cellSize * 9, uiY, this.formatTime(this.timeRemaining), {
-      fontSize: `${Math.floor(this.cellSize * 0.5)}px`,
-      color: '#d32f2f',
-      fontStyle: 'bold'
+      fontSize: `${Math.floor(this.cellSize * 0.5)}px`, color: '#d32f2f', fontStyle: 'bold'
     }).setOrigin(1, 0.5);
 
     this.timerEvent = this.time.addEvent({
@@ -113,6 +133,25 @@ export class GameScene extends Phaser.Scene {
 
     this.drawKrugosBoard();
     this.drawSelectionPanel();
+    
+    this.saveGameState();
+  }
+
+  private saveGameState() {
+    if (this.isGameOver) return;
+    const saveData = {
+      currentPuzzleStr: this.currentPuzzleStr,
+      currentSolutionStr: this.currentSolutionStr,
+      board: this.board,
+      lives: this.lives,
+      timeRemaining: this.timeRemaining,
+      difficulty: this.gameDifficulty
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
+  }
+
+  private clearSave() {
+    localStorage.removeItem(STORAGE_KEY);
   }
 
   private pauseGame() {
@@ -131,8 +170,7 @@ export class GameScene extends Phaser.Scene {
 
     const pauseContainer = this.add.container(0, 0).setDepth(200);
 
-    const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.7)
-      .setOrigin(0).setInteractive();
+    const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0).setInteractive();
     pauseContainer.add(overlay);
 
     const bg = this.add.graphics();
@@ -151,8 +189,7 @@ export class GameScene extends Phaser.Scene {
     const btnH = 55;
     
     const btnContinueY = modalY + 10;
-    const btnContinueBg = this.add.rectangle(modalX, btnContinueY, btnW, btnH, 0x4dd0e1)
-      .setStrokeStyle(2, 0x000000).setInteractive();
+    const btnContinueBg = this.add.rectangle(modalX, btnContinueY, btnW, btnH, 0x4dd0e1).setStrokeStyle(2, 0x000000).setInteractive();
     const btnContinueText = this.add.text(modalX, btnContinueY, 'ПРОДОЛЖИТЬ', {
       fontSize: '18px', color: '#000', fontStyle: 'bold'
     }).setOrigin(0.5);
@@ -167,9 +204,9 @@ export class GameScene extends Phaser.Scene {
     });
 
     const btnNewY = modalY + 90;
-    const btnNewBg = this.add.rectangle(modalX, btnNewY, btnW, btnH, 0xe0e0e0)
-      .setStrokeStyle(2, 0x000000).setInteractive();
-    const btnNewText = this.add.text(modalX, btnNewY, 'НОВАЯ ИГРА', {
+    const btnNewBg = this.add.rectangle(modalX, btnNewY, btnW, btnH, 0xe0e0e0).setStrokeStyle(2, 0x000000).setInteractive();
+    
+    const btnNewText = this.add.text(modalX, btnNewY, 'В МЕНЮ', {
       fontSize: '18px', color: '#000', fontStyle: 'bold'
     }).setOrigin(0.5);
     pauseContainer.add([btnNewBg, btnNewText]);
@@ -177,9 +214,8 @@ export class GameScene extends Phaser.Scene {
     btnNewBg.on('pointerover', () => btnNewBg.setFillStyle(0xd0d0d0));
     btnNewBg.on('pointerout', () => btnNewBg.setFillStyle(0xe0e0e0));
     btnNewBg.on('pointerdown', () => {
-      this.currentPuzzleStr = '';
-      this.currentSolutionStr = '';
-      this.scene.restart({});
+      const exitCallback = this.registry.get('onExitToMenu');
+      if (exitCallback) exitCallback();
     });
   }
 
@@ -231,8 +267,11 @@ export class GameScene extends Phaser.Scene {
       return res;
     };
 
-    this.board = parse(this.currentPuzzleStr);
-    this.initialBoard = JSON.parse(JSON.stringify(this.board));
+    if (this.board.length === 0) {
+      this.board = parse(this.currentPuzzleStr);
+      this.initialBoard = JSON.parse(JSON.stringify(this.board));
+    }
+    
     this.solution = parse(this.currentSolutionStr);
     this.currentBalls = Array.from({ length: 9 }, () => new Array(9).fill(null));
   }
@@ -247,9 +286,15 @@ export class GameScene extends Phaser.Scene {
     if (this.isGameOver || this.isPaused) return; 
     this.timeRemaining--;
     this.timerText.setText(this.formatTime(this.timeRemaining));
+    
+    if (this.timeRemaining % 10 === 0) {
+      this.saveGameState();
+    }
+
     if (this.timeRemaining <= 0) {
       this.isGameOver = true;
       this.timerEvent.remove();
+      this.clearSave();
       this.showGameOverModal('time');
     }
   }
@@ -271,7 +316,10 @@ export class GameScene extends Phaser.Scene {
                 heartToUpdate.setTexture('heart_outline');
                 heartToUpdate.setAlpha(1);
                 if (this.lives <= 0) {
+                    this.clearSave();
                     this.showGameOverModal('no_lives');
+                } else {
+                    this.saveGameState();
                 }
             }
         });
@@ -300,8 +348,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    this.add.rectangle(0, 0, width, height, 0x000000, 0.7)
-      .setOrigin(0).setDepth(100).setInteractive();
+    this.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0).setDepth(100).setInteractive();
 
     const modalW = width * 0.85;
     const modalH = 420;
@@ -348,8 +395,7 @@ export class GameScene extends Phaser.Scene {
     const btnH = 55;
     const btnRestartY = modalY + 60;
     
-    const btnRestartBg = this.add.rectangle(modalX, btnRestartY, btnW, btnH, 0xe0e0e0)
-      .setDepth(102).setStrokeStyle(2, 0x000000).setInteractive();
+    const btnRestartBg = this.add.rectangle(modalX, btnRestartY, btnW, btnH, 0xe0e0e0).setDepth(102).setStrokeStyle(2, 0x000000).setInteractive();
     this.add.text(modalX, btnRestartY, 'ПОВТОРИТЬ ПАРТИЮ', {
       fontSize: '18px', color: '#000', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(103);
@@ -361,18 +407,16 @@ export class GameScene extends Phaser.Scene {
     });
 
     const btnNewY = modalY + 140;
-    const btnNewBg = this.add.rectangle(modalX, btnNewY, btnW, btnH, 0x4dd0e1)
-      .setDepth(102).setStrokeStyle(2, 0x000000).setInteractive();
-    this.add.text(modalX, btnNewY, 'НОВАЯ ИГРА', {
+    const btnNewBg = this.add.rectangle(modalX, btnNewY, btnW, btnH, 0x4dd0e1).setDepth(102).setStrokeStyle(2, 0x000000).setInteractive();
+    this.add.text(modalX, btnNewY, 'В МЕНЮ', {
       fontSize: '18px', color: '#000', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(103);
 
     btnNewBg.on('pointerover', () => btnNewBg.setFillStyle(0x26c6da));
     btnNewBg.on('pointerout', () => btnNewBg.setFillStyle(0x4dd0e1));
     btnNewBg.on('pointerdown', () => {
-      this.currentPuzzleStr = '';
-      this.currentSolutionStr = '';
-      this.scene.restart({}); 
+      const exitCallback = this.registry.get('onExitToMenu');
+      if (exitCallback) exitCallback();
     });
   }
 
@@ -494,12 +538,10 @@ export class GameScene extends Phaser.Scene {
 
     if (this.initialBoard[row][col] !== '-') {
       const id = parseInt(this.initialBoard[row][col], 10);
-      
       this.highlightedId = this.highlightedId === id ? null : id;
       this.selectedCell = null;
     } else {
       this.selectedCell = { row, col };
-      
       this.highlightedId = val !== '-' ? parseInt(val, 10) : null;
     }
 
@@ -550,6 +592,7 @@ export class GameScene extends Phaser.Scene {
       
       this.selectedCell = null;
       this.updateSelectionCounters();
+      this.saveGameState();
     } else {
       this.subtractLife();
       this.renderBall(row, col, id, 'error');
@@ -586,6 +629,7 @@ export class GameScene extends Phaser.Scene {
     if (!hasErrors) {
       this.isGameOver = true;
       this.timerEvent.remove();
+      this.clearSave();
       this.showGameOverModal('win');
     }
   }

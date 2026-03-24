@@ -1,24 +1,39 @@
+import { useState } from 'react';
+import { MainMenu } from './components/MainMenu';
 import { PhaserGame } from './components/PhaserGame';
-import './App.css';
+
+type GameState = 'menu' | 'playing';
 
 export default function App() {
-  return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
-      <PhaserGame />
-      <div 
-        style={{ 
-          position: 'absolute', 
-          top: 0, 
-          left: 0, 
-          width: '100%', 
-          height: '100%', 
-          pointerEvents: 'none',
-          display: 'flex',
-          flexDirection: 'column'
-        }}
-      >
-      </div>
+  const [gameState, setGameState] = useState<GameState>('menu');
+  
+  const [gameConfig, setGameConfig] = useState<{
+    difficulty: 'easy' | 'medium' | 'hard' | 'expert';
+    loadFromStorage: boolean;
+  }>({ difficulty: 'easy', loadFromStorage: false });
 
+  const handleStartGame = (difficulty: 'easy' | 'medium' | 'hard' | 'expert', loadFromSave: boolean) => {
+    setGameConfig({ difficulty, loadFromStorage: loadFromSave });
+    setGameState('playing');
+  };
+
+  const handleExitToMenu = () => {
+    setGameState('menu');
+  };
+
+  return (
+    <div className="w-screen h-screen relative overflow-hidden bg-black">
+      {gameState === 'menu' && (
+        <MainMenu onStartGame={handleStartGame} />
+      )}
+
+      {gameState === 'playing' && (
+        <PhaserGame 
+          difficulty={gameConfig.difficulty} 
+          loadFromStorage={gameConfig.loadFromStorage} 
+          onExitToMenu={handleExitToMenu} 
+        />
+      )}
     </div>
   );
 }

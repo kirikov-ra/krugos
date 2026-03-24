@@ -1,11 +1,16 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import * as Phaser from 'phaser';
-import { StartScene } from '../game/scenes/StartScene';
 import { GameScene } from '../game/scenes/GameScene';
 
-export const PhaserGame: React.FC = () => {
-  const gameRef = useRef<Phaser.Game | null>(null);
+interface PhaserGameProps {
+  difficulty: 'easy' | 'medium' | 'hard' | 'expert';
+  loadFromStorage: boolean;
+  onExitToMenu: () => void;
+}
+
+export const PhaserGame: React.FC<PhaserGameProps> = ({ difficulty, loadFromStorage, onExitToMenu }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const gameRef = useRef<Phaser.Game | null>(null);
 
   useEffect(() => {
     if (!gameRef.current && containerRef.current) {
@@ -19,10 +24,19 @@ export const PhaserGame: React.FC = () => {
           height: 1280
         },
         backgroundColor: '#f0f0f0',
-        scene: [StartScene, GameScene]
+        scene: [GameScene]
       };
 
-      gameRef.current = new Phaser.Game(config);
+      const game = new Phaser.Game(config);
+      gameRef.current = game;
+
+      game.events.once('ready', () => {
+        const gameScene = game.scene.getScene('GameScene');
+        if (gameScene) {
+          gameScene.registry.set('onExitToMenu', onExitToMenu);
+          gameScene.scene.restart({ difficulty, loadFromStorage });
+        }
+      });
     }
 
     return () => {
@@ -31,7 +45,7 @@ export const PhaserGame: React.FC = () => {
         gameRef.current = null;
       }
     };
-  }, []);
+  }, [difficulty, loadFromStorage, onExitToMenu]);
 
-  return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
+  return <div ref={containerRef} className="w-full h-full" />;
 };
