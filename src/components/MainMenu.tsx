@@ -32,7 +32,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
   });
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#e0e5ec] w-full h-full">
+    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center w-full h-full">
       <h1 className="text-6xl font-extrabold text-gray-700 mb-12 drop-shadow-md tracking-tighter">
         KRUGOS
       </h1>

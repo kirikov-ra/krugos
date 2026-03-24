@@ -18,12 +18,12 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ difficulty, loadFromStor
         type: Phaser.AUTO,
         parent: containerRef.current,
         scale: {
-          mode: Phaser.Scale.FIT,
+          mode: Phaser.Scale.FIT, // FIT — самый надежный для мобильных пропорций
           autoCenter: Phaser.Scale.CENTER_BOTH,
           width: 720,
           height: 1280
         },
-        backgroundColor: '#f0f0f0'
+        transparent: true,
       };
 
       const game = new Phaser.Game(config);
@@ -42,5 +42,5 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ difficulty, loadFromStor
     };
   }, [difficulty, loadFromStorage, onExitToMenu]);
 
-  return <div ref={containerRef} className="w-full h-full" />;
+  return <div ref={containerRef} className="aspect-[720/1280] w-[360px] max-w-full" />;
 };

@@ -101,11 +101,11 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
-    const maxGridWidth = width * 0.85;
-    const maxGridHeight = height * 0.6;
+    const maxGridWidth = width * 0.95;
+    const maxGridHeight = height * 0.7;
     this.cellSize = Math.min(maxGridWidth / 9, maxGridHeight / 9);
     this.startX = (width - this.cellSize * 9) / 2;
-    this.startY = height * 0.15;
+    this.startY = height * 0.1;
 
     this.isGameOver = false;
     this.isPaused = false;
@@ -363,7 +363,7 @@ export class GameScene extends Phaser.Scene {
         const y = this.startY + row * this.cellSize;
         const isDark = (Math.floor(row / 3) + Math.floor(col / 3)) % 2 === 1;
 
-        const rect = this.add.rectangle(x, y, this.cellSize, this.cellSize, isDark ? 0xf9f9f9 : 0xffffff)
+        const rect = this.add.rectangle(x, y, this.cellSize, this.cellSize, isDark ? 0xf9f9f9 : 0xffffff, 0)
           .setOrigin(0).setStrokeStyle(1, 0x000000, 0.1).setInteractive();
 
         this.cellRects[row][col] = rect;
@@ -376,45 +376,53 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    const gridGraphics = this.add.graphics();
-    gridGraphics.lineStyle(3, 0x000000, 0.6);
+    const dividers = this.add.graphics();
+    dividers.lineStyle(2, 0x000000, 0.2);
     const totalSize = 9 * this.cellSize;
-    for (let i = 0; i <= 9; i += 3) {
+    for (let i = 3; i <= 6; i += 3) {
       const offset = i * this.cellSize;
-      gridGraphics.moveTo(this.startX + offset, this.startY); gridGraphics.lineTo(this.startX + offset, this.startY + totalSize);
-      gridGraphics.moveTo(this.startX, this.startY + offset); gridGraphics.lineTo(this.startX + totalSize, this.startY + offset);
+      dividers.moveTo(this.startX + offset, this.startY);
+      dividers.lineTo(this.startX + offset, this.startY + totalSize);
+      dividers.moveTo(this.startX, this.startY + offset);
+      dividers.lineTo(this.startX + totalSize, this.startY + offset);
     }
-    gridGraphics.strokePath(); gridGraphics.setDepth(10); 
+    dividers.strokePath(); dividers.setDepth(10);
   }
 
   private updateCellBackgrounds() {
     for (let row = 0; row < 9; row++) {
       for (let col = 0; col < 9; col++) {
-        const isDark = (Math.floor(row / 3) + Math.floor(col / 3)) % 2 === 1;
-        let color = isDark ? 0xf9f9f9 : 0xffffff;
+        
+        // Базовый цвет клетки
+        let color = 0xffffff;
+        let alpha = 0.0;
 
+        // 1. ПРИОРИТЕТ: Выделенная ячейка (куда хотим поставить шар) - СИНИЙ
         if (this.selectedCell && this.selectedCell.row === row && this.selectedCell.col === col) {
           color = 0xd1e9ff;
+          alpha = 0.8;
         } 
+        // 2. ПРИОРИТЕТ: Подсветка ОДИНАКОВЫХ значений - ЖЕЛТЫЙ
         else if (this.highlightedId !== null && this.board[row][col] === this.highlightedId.toString()) {
-          color = 0xfff59d;
+          color = 0xffd74e;
+          alpha = 1;
         }
 
-        this.cellRects[row][col].setFillStyle(color);
+        this.cellRects[row][col].setFillStyle(color, alpha);
       }
     }
   }
 
   private drawSelectionPanel() {
     const { width, height } = this.scale;
-    const panelY = height * 0.85;
+    const panelY = height * 0.8;
     const spacing = width / 10;
 
     for (let id = 1; id <= 9; id++) {
       const x = spacing * id;
       const btn = this.add.image(x, panelY, `ball_${id}`).setInteractive();
       
-      btn.setDisplaySize(this.cellSize * 0.9, this.cellSize * 0.9);
+      btn.setDisplaySize(this.cellSize * 1.0, this.cellSize * 1.0);
       
       const baseScale = btn.scale;
 
