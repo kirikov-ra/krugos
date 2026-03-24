@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { getSudoku } from 'sudoku-gen';
+import type { Difficulty } from 'sudoku-gen/dist/types/difficulty.type';
 
 const STORAGE_KEY = 'krugos_save_data';
 
@@ -12,7 +13,6 @@ export class GameScene extends Phaser.Scene {
   private selectedCell: { row: number, col: number } | null = null;
   private highlightedId: number | null = null;
 
-  private readonly gridSize = 9;
   private cellSize = 0;
   private startX = 0;
   private startY = 0;
@@ -24,20 +24,15 @@ export class GameScene extends Phaser.Scene {
   private isPaused: boolean = false; 
   
   private timeRemaining: number = 1200;
-  private timerText!: Phaser.GameObjects.Text;
   private timerEvent!: Phaser.Time.TimerEvent;
 
   private lives: number = 3;
-  private heartImages: Phaser.GameObjects.Image[] = [];
-
-  private selectionButtons: Record<number, Phaser.GameObjects.Image> = {};
-  private selectionCounters: Record<number, Phaser.GameObjects.Text> = {};
   
   private gameDifficulty: 'easy' | 'medium' | 'hard' | 'expert' = 'easy';
 
   constructor() { super('GameScene'); }
 
-  init(data: { difficulty?: 'easy' | 'medium' | 'hard' | 'expert'; loadFromStorage?: boolean; puzzle?: string; solution?: string } = {}) {
+  init(data: { difficulty?: Difficulty; loadFromStorage?: boolean; puzzle?: string; solution?: string } = {}) {
     if (data.loadFromStorage) {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -82,77 +77,47 @@ export class GameScene extends Phaser.Scene {
     this.load.image('ball_shadow', 'shadow.png');
   }
 
-  private generateHeartTextures() {
-    if (this.textures.exists('heart_filled')) return;
-    const lifeSize = this.cellSize * 0.6;
-    
-    const lifeFilledG = this.make.graphics({ x: 0, y: 0 });
-    lifeFilledG.fillStyle(0xff1744, 1); 
-    lifeFilledG.fillRect(0, 0, lifeSize, lifeSize);
-    lifeFilledG.generateTexture('heart_filled', lifeSize, lifeSize);
-    lifeFilledG.destroy();
-
-    const lifeOutlineG = this.make.graphics({ x: 0, y: 0 });
-    lifeOutlineG.lineStyle(3, 0x9e9e9e, 1); 
-    lifeOutlineG.strokeRect(1.5, 1.5, lifeSize - 3, lifeSize - 3);
-    lifeOutlineG.generateTexture('heart_outline', lifeSize, lifeSize);
-    lifeOutlineG.destroy();
-  }
-
   create() {
-    const { width, height } = this.scale;
-    const maxGridWidth = width * 0.95;
-    const maxGridHeight = height * 0.7;
-    this.cellSize = Math.min(maxGridWidth / 9, maxGridHeight / 9);
-    this.startX = (width - this.cellSize * 9) / 2;
-    this.startY = height * 0.1;
-
+    const { width } = this.scale;
+    this.cellSize = width / 9;
+    this.startX = 0;
+    this.startY = 0;
+    
     this.isGameOver = false;
     this.isPaused = false;
-    this.heartImages = [];
-    this.selectionButtons = {};
-    this.selectionCounters = {};
     this.selectedCell = null;
     this.highlightedId = null;
     this.cellRects = Array.from({ length: 9 }, () => new Array(9).fill(null));
 
-    this.generateHeartTextures();
     this.initSudoku(this.gameDifficulty); 
-
-    this.add.text(width / 2, height * 0.05, 'KRUGOS', {
-      fontSize: `${Math.floor(this.cellSize * 0.8)}px`, color: '#333', fontStyle: 'bold'
-    }).setOrigin(0.5);
-
-    const pauseBtnSize = this.cellSize * 0.6;
-    const uiY = height * 0.05;
-    const pauseBtnBg = this.add.rectangle(this.startX, uiY, pauseBtnSize, pauseBtnSize, 0xffffff)
-      .setOrigin(0, 0.5).setStrokeStyle(2, 0x000000).setInteractive();
-    
-    this.add.text(this.startX + pauseBtnSize / 2, uiY, 'II', {
-      fontSize: '20px', color: '#000', fontStyle: 'bold'
-    }).setOrigin(0.5);
-    pauseBtnBg.on('pointerdown', () => this.pauseGame());
-
-    const livesXStart = this.startX + pauseBtnSize + 15;
-    const heartSpacing = this.cellSize * 0.8;
-    for (let i = 0; i < 3; i++) {
-      const x = livesXStart + i * heartSpacing;
-      const texture = this.lives > i ? 'heart_filled' : 'heart_outline'; 
-      const heart = this.add.image(x, uiY, texture).setOrigin(0, 0.5);
-      this.heartImages.push(heart);
-    }
-
-    this.timerText = this.add.text(this.startX + this.cellSize * 9, uiY, this.formatTime(this.timeRemaining), {
-      fontSize: `${Math.floor(this.cellSize * 0.5)}px`, color: '#d32f2f', fontStyle: 'bold'
-    }).setOrigin(1, 0.5);
 
     this.timerEvent = this.time.addEvent({
       delay: 1000, callback: this.onTimerTick, callbackScope: this, loop: true
     });
 
     this.drawKrugosBoard();
-    this.drawSelectionPanel();
     this.saveGameState();
+    this.updateSelectionCounters();
+
+    window.dispatchEvent(new CustomEvent('update-krugos-hud', { 
+      detail: { time: this.timeRemaining, lives: this.lives } 
+    }));
+
+    const handlePlaceBall = (e: Event) => {
+      const customEvent = e as CustomEvent<number>;
+      this.placeKrugos(customEvent.detail);
+    };
+    window.addEventListener('place-krugos-ball', handlePlaceBall);
+
+    const handlePauseGame = () => {
+      this.pauseGame();
+    };
+    window.addEventListener('pause-krugos-game', handlePauseGame);
+
+    this.events.once('destroy', () => {
+      window.removeEventListener('place-krugos-ball', handlePlaceBall);
+      window.removeEventListener('pause-krugos-game', handlePauseGame);
+    });
   }
 
   private saveGameState() {
@@ -263,7 +228,10 @@ export class GameScene extends Phaser.Scene {
   private onTimerTick() {
     if (this.isGameOver || this.isPaused) return; 
     this.timeRemaining--;
-    this.timerText.setText(this.formatTime(this.timeRemaining));
+
+    window.dispatchEvent(new CustomEvent('update-krugos-hud', { 
+      detail: { time: this.timeRemaining, lives: this.lives } 
+    }));
     
     if (this.timeRemaining % 10 === 0) {
       this.saveGameState(); 
@@ -280,29 +248,22 @@ export class GameScene extends Phaser.Scene {
   private subtractLife() {
     if (this.isGameOver || this.isPaused) return;
     this.lives--;
-    const heartToUpdate = this.heartImages[this.lives];
-    if (heartToUpdate) {
-        this.tweens.add({
-            targets: heartToUpdate, alpha: 0, duration: 100, yoyo: true, repeat: 2,
-            onComplete: () => {
-                heartToUpdate.setTexture('heart_outline');
-                heartToUpdate.setAlpha(1);
-                if (this.lives <= 0) {
-                    this.clearSave();
-                    this.showGameOverModal('no_lives');
-                } else {
-                    this.saveGameState();
-                }
-            }
-        });
-    }
+
+    window.dispatchEvent(new CustomEvent('update-krugos-hud', { 
+      detail: { time: this.timeRemaining, lives: this.lives } 
+    }));
+
     if (this.lives <= 0) {
+      this.clearSave();
+      this.showGameOverModal('no_lives');
       this.isGameOver = true;
       this.timerEvent.remove();
+    } else {
+      this.saveGameState();
     }
   }
 
-  private showGameOverModal(reason: 'time' | 'no_lives' | 'win') {
+  private showGameOverModal(reason: 'time' | 'no_lives' | 'win'): void {
     const { width, height } = this.scale;
     let userFilledCount = 0;
     let emptyCount = 0;
@@ -393,16 +354,13 @@ export class GameScene extends Phaser.Scene {
     for (let row = 0; row < 9; row++) {
       for (let col = 0; col < 9; col++) {
         
-        // Базовый цвет клетки
         let color = 0xffffff;
         let alpha = 0.0;
 
-        // 1. ПРИОРИТЕТ: Выделенная ячейка (куда хотим поставить шар) - СИНИЙ
         if (this.selectedCell && this.selectedCell.row === row && this.selectedCell.col === col) {
           color = 0xd1e9ff;
           alpha = 0.8;
         } 
-        // 2. ПРИОРИТЕТ: Подсветка ОДИНАКОВЫХ значений - ЖЕЛТЫЙ
         else if (this.highlightedId !== null && this.board[row][col] === this.highlightedId.toString()) {
           color = 0xffd74e;
           alpha = 1;
@@ -413,67 +371,6 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private drawSelectionPanel() {
-    const { width, height } = this.scale;
-    const panelY = height * 0.8;
-    const spacing = width / 10;
-
-    for (let id = 1; id <= 9; id++) {
-      const x = spacing * id;
-      const btn = this.add.image(x, panelY, `ball_${id}`).setInteractive();
-      
-      btn.setDisplaySize(this.cellSize * 1.0, this.cellSize * 1.0);
-      
-      const baseScale = btn.scale;
-
-      this.selectionButtons[id] = btn;
-      
-      btn.on('pointerover', () => { 
-        if (btn.input?.enabled) {
-          this.tweens.add({ 
-            targets: btn, 
-            scale: baseScale * 1.1, 
-            y: panelY - 5, 
-            duration: 150, 
-            ease: 'Sine.easeOut' 
-          });
-        } 
-      });
-      
-      btn.on('pointerout', () => { 
-        if (btn.input?.enabled) {
-          this.tweens.add({ 
-            targets: btn, 
-            scale: baseScale, 
-            y: panelY, 
-            duration: 150, 
-            ease: 'Sine.easeOut' 
-          });
-        } 
-      });
-      
-      btn.on('pointerdown', () => {
-        if (btn.input?.enabled) {
-          this.tweens.add({ 
-            targets: btn, 
-            scale: baseScale * 0.95, 
-            duration: 50, 
-            yoyo: true 
-          });
-          this.placeKrugos(id);
-        }
-      });
-
-      const counterText = this.add.text(x, panelY + this.cellSize * 0.55, '9', {
-        fontSize: '16px', color: '#333', fontStyle: 'bold'
-      }).setOrigin(0.5);
-      
-      this.selectionCounters[id] = counterText;
-    }
-
-    this.updateSelectionCounters();
-  }
-
   private updateSelectionCounters() {
     const counts: Record<number, number> = { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0 };
     for (let r = 0; r < 9; r++) {
@@ -482,16 +379,13 @@ export class GameScene extends Phaser.Scene {
         if (val !== '-') counts[parseInt(val, 10)]++;
       }
     }
+
+    const remaining: Record<number, number> = {};
     for (let id = 1; id <= 9; id++) {
-      const remaining = 9 - counts[id];
-      const textObj = this.selectionCounters[id];
-      const btnObj = this.selectionButtons[id];
-      if (textObj && btnObj) {
-        textObj.setText(remaining.toString());
-        if (remaining <= 0) { textObj.setColor('#aaaaaa'); btnObj.setAlpha(0.3); btnObj.disableInteractive(); } 
-        else { textObj.setColor('#333333'); btnObj.setAlpha(1); btnObj.setInteractive(); }
-      }
+      remaining[id] = 9 - counts[id];
     }
+
+    window.dispatchEvent(new CustomEvent('update-krugos-counters', { detail: remaining }));
   }
 
   private handleCellClick(row: number, col: number) {
@@ -516,13 +410,17 @@ export class GameScene extends Phaser.Scene {
     
     const container = this.add.container(x, y);
     
-
     const shadow = this.add.image(0, 0, 'ball_shadow');
     shadow.setDisplaySize(this.cellSize * 1, this.cellSize * 1);
     shadow.setAlpha(0.6);
     
     const textureName = `ball_${id}`;
     const ball = this.add.image(0, 0, textureName);
+    
+    if (ball.texture) {
+      ball.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+    }
+
     ball.setDisplaySize(this.cellSize * 0.93, this.cellSize * 0.93);
 
     container.add([shadow, ball]);

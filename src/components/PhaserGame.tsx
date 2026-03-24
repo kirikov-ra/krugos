@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import * as Phaser from 'phaser';
 import { GameScene } from '../game/scenes/GameScene';
+import type { Difficulty } from 'sudoku-gen/dist/types/difficulty.type';
 
 interface PhaserGameProps {
-  difficulty: 'easy' | 'medium' | 'hard' | 'expert';
+  difficulty: Difficulty;
   loadFromStorage: boolean;
   onExitToMenu: () => void;
 }
@@ -14,23 +15,27 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ difficulty, loadFromStor
 
   useEffect(() => {
     if (!gameRef.current && containerRef.current) {
+
       const config: Phaser.Types.Core.GameConfig = {
-        type: Phaser.AUTO,
+        type: Phaser.WEBGL,
         parent: containerRef.current,
-        scale: {
-          mode: Phaser.Scale.FIT, // FIT — самый надежный для мобильных пропорций
-          autoCenter: Phaser.Scale.CENTER_BOTH,
-          width: 720,
-          height: 1280
-        },
         transparent: true,
+        scale: {
+          mode: Phaser.Scale.FIT,
+          width: 1080, 
+          height: 1080
+        },
+        render: {
+          antialias: true,
+          roundPixels: true,
+        }
       };
+
+      Object.assign(config, { resolution: window.devicePixelRatio || 1 });
 
       const game = new Phaser.Game(config);
       gameRef.current = game;
-
       game.registry.set('onExitToMenu', onExitToMenu);
-
       game.scene.add('GameScene', GameScene, true, { difficulty, loadFromStorage });
     }
 
@@ -42,5 +47,5 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ difficulty, loadFromStor
     };
   }, [difficulty, loadFromStorage, onExitToMenu]);
 
-  return <div ref={containerRef} className="aspect-[720/1280] w-[360px] max-w-full" />;
+  return <div ref={containerRef} className="w-full h-full" />;
 };
