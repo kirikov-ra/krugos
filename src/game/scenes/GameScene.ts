@@ -1,11 +1,6 @@
 import * as Phaser from 'phaser';
 import { getSudoku } from 'sudoku-gen';
 
-const KRUGOS_COLOR_MAP: Record<number, number> = {
-  1: 0x4dd0e1, 2: 0xba68c8, 3: 0xf48fb1, 4: 0xce93d8, 
-  5: 0x64b5f6, 6: 0x9575cd, 7: 0xfff176, 8: 0xffb74d, 9: 0x9e9e9e 
-};
-
 const STORAGE_KEY = 'krugos_save_data';
 
 export class GameScene extends Phaser.Scene {
@@ -77,6 +72,30 @@ export class GameScene extends Phaser.Scene {
     this.timeRemaining = 1200;
   }
 
+  preload() {
+    this.load.setPath('assets/balls'); 
+    for (let id = 1; id <= 9; id++) {
+      this.load.image(`ball_${id}`, `ball_${id}.png`);
+    }
+  }
+
+  private generateHeartTextures() {
+    if (this.textures.exists('heart_filled')) return;
+    const lifeSize = this.cellSize * 0.6;
+    
+    const lifeFilledG = this.make.graphics({ x: 0, y: 0 });
+    lifeFilledG.fillStyle(0xff1744, 1); 
+    lifeFilledG.fillRect(0, 0, lifeSize, lifeSize);
+    lifeFilledG.generateTexture('heart_filled', lifeSize, lifeSize);
+    lifeFilledG.destroy();
+
+    const lifeOutlineG = this.make.graphics({ x: 0, y: 0 });
+    lifeOutlineG.lineStyle(3, 0x9e9e9e, 1); 
+    lifeOutlineG.strokeRect(1.5, 1.5, lifeSize - 3, lifeSize - 3);
+    lifeOutlineG.generateTexture('heart_outline', lifeSize, lifeSize);
+    lifeOutlineG.destroy();
+  }
+
   create() {
     const { width, height } = this.scale;
     const maxGridWidth = width * 0.85;
@@ -94,7 +113,7 @@ export class GameScene extends Phaser.Scene {
     this.highlightedId = null;
     this.cellRects = Array.from({ length: 9 }, () => new Array(9).fill(null));
 
-    this.generateBallTextures();
+    this.generateHeartTextures();
     this.initSudoku(this.gameDifficulty); 
 
     this.add.text(width / 2, height * 0.05, 'KRUGOS', {
@@ -211,39 +230,6 @@ export class GameScene extends Phaser.Scene {
       const exitCallback = this.registry.get('onExitToMenu');
       if (exitCallback) exitCallback();
     });
-  }
-
-  private generateBallTextures() {
-    if (this.textures.exists('krug_1')) return;
-    for (let id = 1; id <= 9; id++) {
-      const graphics = this.make.graphics({ x: 0, y: 0 });
-      graphics.fillStyle(KRUGOS_COLOR_MAP[id], 1);
-      graphics.fillCircle(this.cellSize / 2, this.cellSize / 2, this.cellSize * 0.4);
-      graphics.lineStyle(2, 0x000000, 0.2);
-      graphics.strokeCircle(this.cellSize / 2, this.cellSize / 2, this.cellSize * 0.4);
-      graphics.generateTexture(`krug_${id}`, this.cellSize, this.cellSize);
-      graphics.destroy();
-
-      const graphicsError = this.make.graphics({ x: 0, y: 0 });
-      graphicsError.fillStyle(0xff1744, 0.9); 
-      graphicsError.fillCircle(this.cellSize / 2, this.cellSize / 2, this.cellSize * 0.4);
-      graphicsError.lineStyle(3, 0x000000, 0.4); 
-      graphicsError.strokeCircle(this.cellSize / 2, this.cellSize / 2, this.cellSize * 0.4);
-      graphicsError.generateTexture(`krug_error_${id}`, this.cellSize, this.cellSize);
-      graphicsError.destroy();
-    }
-    const lifeSize = this.cellSize * 0.6;
-    const lifeFilledG = this.make.graphics({ x: 0, y: 0 });
-    lifeFilledG.fillStyle(0xff1744, 1); 
-    lifeFilledG.fillRect(0, 0, lifeSize, lifeSize);
-    lifeFilledG.generateTexture('heart_filled', lifeSize, lifeSize);
-    lifeFilledG.destroy();
-
-    const lifeOutlineG = this.make.graphics({ x: 0, y: 0 });
-    lifeOutlineG.lineStyle(3, 0x9e9e9e, 1); 
-    lifeOutlineG.strokeRect(1.5, 1.5, lifeSize - 3, lifeSize - 3);
-    lifeOutlineG.generateTexture('heart_outline', lifeSize, lifeSize);
-    lifeOutlineG.destroy();
   }
 
   private initSudoku(difficulty: 'easy' | 'medium' | 'hard' | 'expert') {
@@ -380,7 +366,6 @@ export class GameScene extends Phaser.Scene {
         this.cellRects[row][col] = rect;
         rect.on('pointerdown', () => this.handleCellClick(row, col));
 
-        // Отрисовка при инициализации/загрузке (теперь тут только валидные шары)
         const val = this.board[row][col];
         if (val !== '-') {
           this.renderBall(row, col, parseInt(val, 10), 'initial');
@@ -421,20 +406,60 @@ export class GameScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const panelY = height * 0.85;
     const spacing = width / 10;
+
     for (let id = 1; id <= 9; id++) {
       const x = spacing * id;
-      const btn = this.add.image(x, panelY, `krug_${id}`).setInteractive().setScale(0.9);
+      const btn = this.add.image(x, panelY, `ball_${id}`).setInteractive();
+      
+      btn.setDisplaySize(this.cellSize * 0.9, this.cellSize * 0.9);
+      
+      const baseScale = btn.scale;
+
       this.selectionButtons[id] = btn;
       
-      btn.on('pointerover', () => { if (btn.input?.enabled) btn.setScale(1.1); });
-      btn.on('pointerout', () => { if (btn.input?.enabled) btn.setScale(0.9); });
-      btn.on('pointerdown', () => this.placeKrugos(id));
+      btn.on('pointerover', () => { 
+        if (btn.input?.enabled) {
+          this.tweens.add({ 
+            targets: btn, 
+            scale: baseScale * 1.1, 
+            y: panelY - 5, 
+            duration: 150, 
+            ease: 'Sine.easeOut' 
+          });
+        } 
+      });
+      
+      btn.on('pointerout', () => { 
+        if (btn.input?.enabled) {
+          this.tweens.add({ 
+            targets: btn, 
+            scale: baseScale, 
+            y: panelY, 
+            duration: 150, 
+            ease: 'Sine.easeOut' 
+          });
+        } 
+      });
+      
+      btn.on('pointerdown', () => {
+        if (btn.input?.enabled) {
+          this.tweens.add({ 
+            targets: btn, 
+            scale: baseScale * 0.95, 
+            duration: 50, 
+            yoyo: true 
+          });
+          this.placeKrugos(id);
+        }
+      });
 
       const counterText = this.add.text(x, panelY + this.cellSize * 0.55, '9', {
         fontSize: '16px', color: '#333', fontStyle: 'bold'
       }).setOrigin(0.5);
+      
       this.selectionCounters[id] = counterText;
     }
+
     this.updateSelectionCounters();
   }
 
@@ -478,30 +503,27 @@ export class GameScene extends Phaser.Scene {
     
     if (this.currentBalls[row][col]) this.currentBalls[row][col]?.destroy();
     
-    const isValid = state === 'initial' || state === 'success';
-    const textureName = isValid ? `krug_${id}` : `krug_error_${id}`;
+    const textureName = `ball_${id}`;
     const ball = this.add.image(x, y, textureName);
 
+    ball.setDisplaySize(this.cellSize * 0.9, this.cellSize * 0.9);
+    
+    const targetScale = ball.scale; 
+
     if (state === 'success') {
-      ball.setScale(0);
-      this.tweens.add({ targets: ball, scale: 1, duration: 500, ease: 'Back.out' });
+      ball.setScale(0); 
+      this.tweens.add({ targets: ball, scale: targetScale, duration: 500, ease: 'Back.out' });
       this.currentBalls[row][col] = ball;
     } 
     else if (state === 'error') {
       this.currentBalls[row][col] = ball; 
-      
+      ball.postFX.addGlow(0xff1744, 4); 
+
       this.tweens.add({ 
-        targets: ball, 
-        x: x + 5, 
-        duration: 50, 
-        yoyo: true, 
-        repeat: 3,
+        targets: ball, x: x + 5, duration: 50, yoyo: true, repeat: 3,
         onComplete: () => {
           this.tweens.add({
-            targets: ball,
-            alpha: 0,
-            delay: 500,
-            duration: 300,
+            targets: ball, alpha: 0, delay: 500, duration: 300,
             onComplete: () => {
               ball.destroy();
               if (this.currentBalls[row][col] === ball) {
@@ -513,7 +535,6 @@ export class GameScene extends Phaser.Scene {
       });
     } 
     else {
-      ball.setScale(1);
       this.currentBalls[row][col] = ball;
     }
   }
