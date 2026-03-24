@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as Phaser from 'phaser';
 import { GameScene } from '../game/scenes/GameScene';
 
@@ -23,20 +23,15 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ difficulty, loadFromStor
           width: 720,
           height: 1280
         },
-        backgroundColor: '#f0f0f0',
-        scene: [GameScene]
+        backgroundColor: '#f0f0f0'
       };
 
       const game = new Phaser.Game(config);
       gameRef.current = game;
 
-      game.events.once('ready', () => {
-        const gameScene = game.scene.getScene('GameScene');
-        if (gameScene) {
-          gameScene.registry.set('onExitToMenu', onExitToMenu);
-          gameScene.scene.restart({ difficulty, loadFromStorage });
-        }
-      });
+      game.registry.set('onExitToMenu', onExitToMenu);
+
+      game.scene.add('GameScene', GameScene, true, { difficulty, loadFromStorage });
     }
 
     return () => {
