@@ -31,6 +31,9 @@ export class GameScene extends Phaser.Scene {
   private lives: number = 3;
   private heartImages: Phaser.GameObjects.Image[] = [];
 
+  private selectionButtons: Record<number, Phaser.GameObjects.Image> = {};
+  private selectionCounters: Record<number, Phaser.GameObjects.Text> = {};
+
   constructor() { super('GameScene'); }
 
   init(data: any) {
@@ -55,9 +58,11 @@ export class GameScene extends Phaser.Scene {
 
     this.isGameOver = false;
     this.isPaused = false;
-    this.timeRemaining = 1200;
+    this.timeRemaining = 300;
     this.lives = 3;
     this.heartImages = [];
+    this.selectionButtons = {};
+    this.selectionCounters = {};
 
     this.generateBallTextures();
     this.initSudoku('easy');
@@ -74,7 +79,7 @@ export class GameScene extends Phaser.Scene {
     const pauseBtnBg = this.add.rectangle(this.startX, uiY, pauseBtnSize, pauseBtnSize, 0xffffff)
       .setOrigin(0, 0.5).setStrokeStyle(2, 0x000000).setInteractive();
     
-    const pauseIcon = this.add.text(this.startX + pauseBtnSize / 2, uiY, 'II', {
+    this.add.text(this.startX + pauseBtnSize / 2, uiY, 'II', {
       fontSize: '20px', color: '#000', fontStyle: 'bold'
     }).setOrigin(0.5);
 
@@ -104,10 +109,8 @@ export class GameScene extends Phaser.Scene {
 
   private pauseGame() {
     if (this.isGameOver || this.isPaused) return;
-    
     this.isPaused = true;
-    this.timerEvent.paused = true;
-    
+    this.timerEvent.paused = true; 
     this.showPauseModal();
   }
 
@@ -150,9 +153,9 @@ export class GameScene extends Phaser.Scene {
     btnContinueBg.on('pointerover', () => btnContinueBg.setFillStyle(0x26c6da));
     btnContinueBg.on('pointerout', () => btnContinueBg.setFillStyle(0x4dd0e1));
     btnContinueBg.on('pointerdown', () => {
-      pauseContainer.destroy();
+      pauseContainer.destroy(); 
       this.isPaused = false;
-      this.timerEvent.paused = false;
+      this.timerEvent.paused = false; 
     });
 
     const btnNewY = modalY + 90;
@@ -233,7 +236,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onTimerTick() {
-    if (this.isGameOver || this.isPaused) return;
+    if (this.isGameOver || this.isPaused) return; 
     this.timeRemaining--;
     this.timerText.setText(this.formatTime(this.timeRemaining));
     if (this.timeRemaining <= 0) {
@@ -402,17 +405,62 @@ export class GameScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const panelY = height * 0.85;
     const spacing = width / 10;
+    
     for (let id = 1; id <= 9; id++) {
       const x = spacing * id;
+      
       const btn = this.add.image(x, panelY, `krug_${id}`).setInteractive().setScale(0.9);
-      btn.on('pointerover', () => btn.setScale(1.1));
-      btn.on('pointerout', () => btn.setScale(0.9));
+      this.selectionButtons[id] = btn;
+      
+      btn.on('pointerover', () => { if (btn.input?.enabled) btn.setScale(1.1); });
+      btn.on('pointerout', () => { if (btn.input?.enabled) btn.setScale(0.9); });
       btn.on('pointerdown', () => this.placeKrugos(id));
+
+      const counterText = this.add.text(x, panelY + this.cellSize * 0.55, '9', {
+        fontSize: '16px', color: '#333', fontStyle: 'bold'
+      }).setOrigin(0.5);
+      
+      this.selectionCounters[id] = counterText;
+    }
+
+    this.updateSelectionCounters();
+  }
+
+  private updateSelectionCounters() {
+    const counts: Record<number, number> = { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0 };
+    
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        const val = this.initialBoard[r][c];
+        if (val !== '-') {
+          counts[parseInt(val, 10)]++;
+        }
+      }
+    }
+
+    for (let id = 1; id <= 9; id++) {
+      const remaining = 9 - counts[id];
+      const textObj = this.selectionCounters[id];
+      const btnObj = this.selectionButtons[id];
+
+      if (textObj && btnObj) {
+        textObj.setText(remaining.toString());
+        
+        if (remaining <= 0) {
+          textObj.setColor('#aaaaaa');
+          btnObj.setAlpha(0.3);        
+          btnObj.disableInteractive(); 
+        } else {
+          textObj.setColor('#333333');
+          btnObj.setAlpha(1);
+          btnObj.setInteractive();
+        }
+      }
     }
   }
 
   private handleCellClick(row: number, col: number, rect: Phaser.GameObjects.Rectangle) {
-    if (this.isGameOver || this.isPaused) return;
+    if (this.isGameOver || this.isPaused) return; 
     if (this.initialBoard[row][col] !== '-') return; 
     
     if (this.selectedCell) this.selectedCell.rect.setFillStyle(this.selectedCell.rect.fillColor === 0xf9f9f9 ? 0xf9f9f9 : 0xffffff);
@@ -456,6 +504,8 @@ export class GameScene extends Phaser.Scene {
       const isDark = (Math.floor(row / 3) + Math.floor(col / 3)) % 2 === 1;
       rect.setFillStyle(isDark ? 0xf9f9f9 : 0xffffff);
       this.selectedCell = null;
+
+      this.updateSelectionCounters();
     } else {
       this.subtractLife();
       this.renderBall(row, col, id, 'error');
