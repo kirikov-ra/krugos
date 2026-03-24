@@ -211,10 +211,8 @@ export class GameScene extends Phaser.Scene {
       for (let i = 0; i < 9; i++) res.push(str.substring(i * 9, i * 9 + 9).split(''));
       return res;
     };
-    if (this.board.length === 0) {
-      this.board = parse(this.currentPuzzleStr);
-      this.initialBoard = JSON.parse(JSON.stringify(this.board));
-    }
+    this.board = parse(this.currentPuzzleStr);
+    this.initialBoard = JSON.parse(JSON.stringify(this.board));
     this.solution = parse(this.currentSolutionStr);
     this.currentBalls = Array.from({ length: 9 }, () => new Array(9).fill(null));
   }
