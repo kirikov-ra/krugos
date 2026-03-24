@@ -7,7 +7,7 @@ export class GameScene extends Phaser.Scene {
   private board: string[][] = [];
   private initialBoard: string[][] = []; 
   private solution: string[][] = [];
-  private currentBalls: (Phaser.GameObjects.Image | null)[][] = [];
+  private currentBalls: (Phaser.GameObjects.Container | null)[][] = [];
   private cellRects: Phaser.GameObjects.Rectangle[][] = [];
   private selectedCell: { row: number, col: number } | null = null;
   private highlightedId: number | null = null;
@@ -77,6 +77,9 @@ export class GameScene extends Phaser.Scene {
     for (let id = 1; id <= 9; id++) {
       this.load.image(`ball_${id}`, `ball_${id}.png`);
     }
+
+    this.load.setPath('assets/ui'); 
+    this.load.image('ball_shadow', 'shadow.png');
   }
 
   private generateHeartTextures() {
@@ -503,30 +506,40 @@ export class GameScene extends Phaser.Scene {
     
     if (this.currentBalls[row][col]) this.currentBalls[row][col]?.destroy();
     
-    const textureName = `ball_${id}`;
-    const ball = this.add.image(x, y, textureName);
-
-    ball.setDisplaySize(this.cellSize * 0.9, this.cellSize * 0.9);
+    const container = this.add.container(x, y);
     
-    const targetScale = ball.scale; 
+
+    const shadow = this.add.image(0, 0, 'ball_shadow');
+    shadow.setDisplaySize(this.cellSize * 1, this.cellSize * 1);
+    shadow.setAlpha(0.6);
+    
+    const textureName = `ball_${id}`;
+    const ball = this.add.image(0, 0, textureName);
+    ball.setDisplaySize(this.cellSize * 0.93, this.cellSize * 0.93);
+
+    container.add([shadow, ball]);
+
+    const targetScale = container.scale; 
 
     if (state === 'success') {
-      ball.setScale(0); 
-      this.tweens.add({ targets: ball, scale: targetScale, duration: 500, ease: 'Back.out' });
-      this.currentBalls[row][col] = ball;
+      container.setScale(0); 
+      this.tweens.add({ targets: container, scale: targetScale, duration: 500, ease: 'Back.out' });
+      this.currentBalls[row][col] = container;
     } 
     else if (state === 'error') {
-      this.currentBalls[row][col] = ball; 
+      this.currentBalls[row][col] = container; 
+      
       ball.postFX.addGlow(0xff1744, 4); 
 
       this.tweens.add({ 
-        targets: ball, x: x + 5, duration: 50, yoyo: true, repeat: 3,
+        targets: container,
+        x: x + 5, duration: 50, yoyo: true, repeat: 3,
         onComplete: () => {
           this.tweens.add({
-            targets: ball, alpha: 0, delay: 500, duration: 300,
+            targets: container, alpha: 0, delay: 500, duration: 300,
             onComplete: () => {
-              ball.destroy();
-              if (this.currentBalls[row][col] === ball) {
+              container.destroy();
+              if (this.currentBalls[row][col] === container) {
                 this.currentBalls[row][col] = null; 
               }
             }
@@ -535,7 +548,8 @@ export class GameScene extends Phaser.Scene {
       });
     } 
     else {
-      this.currentBalls[row][col] = ball;
+      container.setScale(1); 
+      this.currentBalls[row][col] = container;
     }
   }
 
