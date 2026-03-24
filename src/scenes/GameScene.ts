@@ -11,7 +11,11 @@ export class GameScene extends Phaser.Scene {
   private initialBoard: string[][] = [];
   private solution: string[][] = [];
   private currentBalls: (Phaser.GameObjects.Image | null)[][] = [];
-  private selectedCell: { row: number, col: number, rect: Phaser.GameObjects.Rectangle } | null = null;
+  
+  private cellRects: Phaser.GameObjects.Rectangle[][] = [];
+  
+  private selectedCell: { row: number, col: number } | null = null;
+  private highlightedId: number | null = null;
 
   private readonly gridSize = 9;
   private cellSize = 0;
@@ -58,11 +62,15 @@ export class GameScene extends Phaser.Scene {
 
     this.isGameOver = false;
     this.isPaused = false;
-    this.timeRemaining = 300;
+    this.timeRemaining = 1200;
     this.lives = 3;
     this.heartImages = [];
     this.selectionButtons = {};
     this.selectionCounters = {};
+    
+    this.selectedCell = null;
+    this.highlightedId = null;
+    this.cellRects = Array.from({ length: 9 }, () => new Array(9).fill(null));
 
     this.generateBallTextures();
     this.initSudoku('easy');
@@ -378,7 +386,9 @@ export class GameScene extends Phaser.Scene {
         const rect = this.add.rectangle(x, y, this.cellSize, this.cellSize, isDark ? 0xf9f9f9 : 0xffffff)
           .setOrigin(0).setStrokeStyle(1, 0x000000, 0.1).setInteractive();
 
-        rect.on('pointerdown', () => this.handleCellClick(row, col, rect));
+        this.cellRects[row][col] = rect;
+
+        rect.on('pointerdown', () => this.handleCellClick(row, col));
 
         const val = this.board[row][col];
         if (val !== '-') {
@@ -399,6 +409,24 @@ export class GameScene extends Phaser.Scene {
     }
     gridGraphics.strokePath();
     gridGraphics.setDepth(10); 
+  }
+
+  private updateCellBackgrounds() {
+    for (let row = 0; row < 9; row++) {
+      for (let col = 0; col < 9; col++) {
+        const isDark = (Math.floor(row / 3) + Math.floor(col / 3)) % 2 === 1;
+        let color = isDark ? 0xf9f9f9 : 0xffffff;
+
+        if (this.selectedCell && this.selectedCell.row === row && this.selectedCell.col === col) {
+          color = 0xd1e9ff;
+        } 
+        else if (this.highlightedId !== null && this.board[row][col] === this.highlightedId.toString()) {
+          color = 0xfff59d;
+        }
+
+        this.cellRects[row][col].setFillStyle(color);
+      }
+    }
   }
 
   private drawSelectionPanel() {
@@ -459,13 +487,23 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private handleCellClick(row: number, col: number, rect: Phaser.GameObjects.Rectangle) {
+  private handleCellClick(row: number, col: number) {
     if (this.isGameOver || this.isPaused) return; 
-    if (this.initialBoard[row][col] !== '-') return; 
     
-    if (this.selectedCell) this.selectedCell.rect.setFillStyle(this.selectedCell.rect.fillColor === 0xf9f9f9 ? 0xf9f9f9 : 0xffffff);
-    rect.setFillStyle(0xd1e9ff);
-    this.selectedCell = { row, col, rect };
+    const val = this.board[row][col];
+
+    if (this.initialBoard[row][col] !== '-') {
+      const id = parseInt(this.initialBoard[row][col], 10);
+      
+      this.highlightedId = this.highlightedId === id ? null : id;
+      this.selectedCell = null;
+    } else {
+      this.selectedCell = { row, col };
+      
+      this.highlightedId = val !== '-' ? parseInt(val, 10) : null;
+    }
+
+    this.updateCellBackgrounds();
   }
 
   private renderBall(row: number, col: number, id: number, state: 'initial' | 'success' | 'error' | 'error-idle') {
@@ -491,26 +529,33 @@ export class GameScene extends Phaser.Scene {
   }
 
   private placeKrugos(id: number) {
-    if (this.isGameOver || this.isPaused || !this.selectedCell) return;
-    const { row, col, rect } = this.selectedCell;
+    if (this.isGameOver || this.isPaused) return;
+
+    if (!this.selectedCell) {
+      this.highlightedId = this.highlightedId === id ? null : id;
+      this.updateCellBackgrounds();
+      return;
+    }
+
+    const { row, col } = this.selectedCell;
 
     this.board[row][col] = id.toString();
     const isValidMove = this.isMoveValid(row, col, id);
+
+    this.highlightedId = id;
 
     if (isValidMove) {
       this.initialBoard[row][col] = id.toString(); 
       this.renderBall(row, col, id, 'success');
       
-      const isDark = (Math.floor(row / 3) + Math.floor(col / 3)) % 2 === 1;
-      rect.setFillStyle(isDark ? 0xf9f9f9 : 0xffffff);
       this.selectedCell = null;
-
       this.updateSelectionCounters();
     } else {
       this.subtractLife();
       this.renderBall(row, col, id, 'error');
     }
 
+    this.updateCellBackgrounds();
     this.refreshBoardVisuals();
     this.checkWinCondition();
   }
