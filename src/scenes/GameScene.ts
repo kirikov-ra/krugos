@@ -22,6 +22,8 @@ export class GameScene extends Phaser.Scene {
   private currentSolutionStr: string = '';
 
   private isGameOver: boolean = false;
+  private isPaused: boolean = false; 
+  
   private timeRemaining: number = 300;
   private timerText!: Phaser.GameObjects.Text;
   private timerEvent!: Phaser.Time.TimerEvent;
@@ -52,6 +54,7 @@ export class GameScene extends Phaser.Scene {
     this.startY = height * 0.15;
 
     this.isGameOver = false;
+    this.isPaused = false;
     this.timeRemaining = 1200;
     this.lives = 3;
     this.heartImages = [];
@@ -65,15 +68,27 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const livesY = height * 0.05;
+    const pauseBtnSize = this.cellSize * 0.6;
+    const uiY = height * 0.05;
+    
+    const pauseBtnBg = this.add.rectangle(this.startX, uiY, pauseBtnSize, pauseBtnSize, 0xffffff)
+      .setOrigin(0, 0.5).setStrokeStyle(2, 0x000000).setInteractive();
+    
+    const pauseIcon = this.add.text(this.startX + pauseBtnSize / 2, uiY, 'II', {
+      fontSize: '20px', color: '#000', fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    pauseBtnBg.on('pointerdown', () => this.pauseGame());
+
+    const livesXStart = this.startX + pauseBtnSize + 15;
     const heartSpacing = this.cellSize * 0.8;
     for (let i = 0; i < 3; i++) {
-      const x = this.startX + i * heartSpacing;
-      const heart = this.add.image(x, livesY, 'heart_filled').setOrigin(0, 0.5);
+      const x = livesXStart + i * heartSpacing;
+      const heart = this.add.image(x, uiY, 'heart_filled').setOrigin(0, 0.5);
       this.heartImages.push(heart);
     }
 
-    this.timerText = this.add.text(this.startX + this.cellSize * 9, height * 0.05, this.formatTime(this.timeRemaining), {
+    this.timerText = this.add.text(this.startX + this.cellSize * 9, uiY, this.formatTime(this.timeRemaining), {
       fontSize: `${Math.floor(this.cellSize * 0.5)}px`,
       color: '#d32f2f',
       fontStyle: 'bold'
@@ -85,6 +100,76 @@ export class GameScene extends Phaser.Scene {
 
     this.drawKrugosBoard();
     this.drawSelectionPanel();
+  }
+
+  private pauseGame() {
+    if (this.isGameOver || this.isPaused) return;
+    
+    this.isPaused = true;
+    this.timerEvent.paused = true;
+    
+    this.showPauseModal();
+  }
+
+  private showPauseModal() {
+    const { width, height } = this.scale;
+    const modalX = width / 2;
+    const modalY = height / 2;
+    const modalW = width * 0.8;
+    const modalH = 260;
+
+    const pauseContainer = this.add.container(0, 0).setDepth(200);
+
+    const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.7)
+      .setOrigin(0).setInteractive();
+    pauseContainer.add(overlay);
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0xffffff, 1);
+    bg.fillRoundedRect(modalX - modalW / 2, modalY - modalH / 2, modalW, modalH, 16);
+    bg.lineStyle(4, 0x000000, 1);
+    bg.strokeRoundedRect(modalX - modalW / 2, modalY - modalH / 2, modalW, modalH, 16);
+    pauseContainer.add(bg);
+
+    const title = this.add.text(modalX, modalY - modalH / 2 + 40, 'ПАУЗА', {
+      fontSize: '26px', color: '#333', fontStyle: 'bold'
+    }).setOrigin(0.5);
+    pauseContainer.add(title);
+
+    const btnW = modalW * 0.8;
+    const btnH = 55;
+    
+    const btnContinueY = modalY + 10;
+    const btnContinueBg = this.add.rectangle(modalX, btnContinueY, btnW, btnH, 0x4dd0e1)
+      .setStrokeStyle(2, 0x000000).setInteractive();
+    const btnContinueText = this.add.text(modalX, btnContinueY, 'ПРОДОЛЖИТЬ', {
+      fontSize: '18px', color: '#000', fontStyle: 'bold'
+    }).setOrigin(0.5);
+    pauseContainer.add([btnContinueBg, btnContinueText]);
+
+    btnContinueBg.on('pointerover', () => btnContinueBg.setFillStyle(0x26c6da));
+    btnContinueBg.on('pointerout', () => btnContinueBg.setFillStyle(0x4dd0e1));
+    btnContinueBg.on('pointerdown', () => {
+      pauseContainer.destroy();
+      this.isPaused = false;
+      this.timerEvent.paused = false;
+    });
+
+    const btnNewY = modalY + 90;
+    const btnNewBg = this.add.rectangle(modalX, btnNewY, btnW, btnH, 0xe0e0e0)
+      .setStrokeStyle(2, 0x000000).setInteractive();
+    const btnNewText = this.add.text(modalX, btnNewY, 'НОВАЯ ИГРА', {
+      fontSize: '18px', color: '#000', fontStyle: 'bold'
+    }).setOrigin(0.5);
+    pauseContainer.add([btnNewBg, btnNewText]);
+
+    btnNewBg.on('pointerover', () => btnNewBg.setFillStyle(0xd0d0d0));
+    btnNewBg.on('pointerout', () => btnNewBg.setFillStyle(0xe0e0e0));
+    btnNewBg.on('pointerdown', () => {
+      this.currentPuzzleStr = '';
+      this.currentSolutionStr = '';
+      this.scene.restart({});
+    });
   }
 
   private generateBallTextures() {
@@ -148,7 +233,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onTimerTick() {
-    if (this.isGameOver) return;
+    if (this.isGameOver || this.isPaused) return;
     this.timeRemaining--;
     this.timerText.setText(this.formatTime(this.timeRemaining));
     if (this.timeRemaining <= 0) {
@@ -159,7 +244,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private subtractLife() {
-    if (this.isGameOver) return;
+    if (this.isGameOver || this.isPaused) return;
     
     this.lives--;
     
@@ -327,7 +412,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleCellClick(row: number, col: number, rect: Phaser.GameObjects.Rectangle) {
-    if (this.isGameOver) return;
+    if (this.isGameOver || this.isPaused) return;
     if (this.initialBoard[row][col] !== '-') return; 
     
     if (this.selectedCell) this.selectedCell.rect.setFillStyle(this.selectedCell.rect.fillColor === 0xf9f9f9 ? 0xf9f9f9 : 0xffffff);
@@ -358,7 +443,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private placeKrugos(id: number) {
-    if (this.isGameOver || !this.selectedCell) return;
+    if (this.isGameOver || this.isPaused || !this.selectedCell) return;
     const { row, col, rect } = this.selectedCell;
 
     this.board[row][col] = id.toString();

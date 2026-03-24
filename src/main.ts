@@ -5,16 +5,13 @@ import { StartScene } from './scenes/StartScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  width: window.innerWidth,
-  height: window.innerHeight,
   parent: 'app',
   backgroundColor: '#ffffff',
   scale: {
     mode: Phaser.Scale.FIT, 
     autoCenter: Phaser.Scale.CENTER_BOTH, 
-    
-    width: window.innerWidth,
-    height: window.innerHeight,
+    width: 720,  
+    height: 1280 
   },
   scene: [StartScene, GameScene]
 };
