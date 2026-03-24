@@ -40,7 +40,7 @@ export class GameScene extends Phaser.Scene {
 
   constructor() { super('GameScene'); }
 
-  init(data: any) {
+  init(data: { puzzle?: string; solution?: string } = {}) {
     if (data && data.puzzle && data.solution) {
       this.currentPuzzleStr = data.puzzle;
       this.currentSolutionStr = data.solution;
