@@ -3,6 +3,7 @@ import { MainMenu } from './components/MainMenu';
 import { PhaserGame } from './components/PhaserGame';
 import type { IHudData, ISelectionCounters } from './game/types';
 import type { Difficulty } from 'sudoku-gen/dist/types/difficulty.type';
+import AnimalsPanel from './components/AnimalsPanel';
 
 type GameState = 'menu' | 'playing';
 
@@ -27,7 +28,7 @@ export default function App() {
   };
 
   useEffect(() => {
-  const handleUpdateCounters = (e: Event) => {
+    const handleUpdateCounters = (e: Event) => {
     const customEvent = e as CustomEvent<ISelectionCounters>;
     setCounters(customEvent.detail);
   };
@@ -84,20 +85,28 @@ export default function App() {
                 {formatTime(hud.time)}
               </span>
               <div className="flex gap-1 mt-1">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="w-5 h-5">
-                    <svg viewBox="0 0 24 24" className={i <= hud.lives ? "fill-red-500 drop-shadow-sm" : "fill-transparent stroke-gray-400 stroke-2"}>
-                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                    </svg>
-                  </div>
-                ))}
+                {[1, 2, 3].map((i) => {
+                  const isLost = i > hud.lives;
+                  
+                  return (
+                    <div 
+                      key={i} 
+                      className={`w-5 h-5 transition-all duration-300 ${isLost ? 'opacity-30 grayscale scale-90' : 'opacity-100 scale-100'}`}
+                    >
+                      <img 
+                        src="/assets/ui/heart.png" 
+                        alt="heart" 
+                        className="w-full h-full object-contain drop-shadow-sm" 
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
 
-          <div className="w-full max-w-sm aspect-square rounded-lg border-[3px] border-white/50 bg-white/20 
-                          shadow-[20px_20px_40px_rgba(160,170,180,0.5),-20px_-20px_40px_rgba(255,255,255,0.8)]
-                          p-1 relative overflow-hidden">
+          <div className="my-6 w-full max-w-sm aspect-square rounded-lg border-[3px] border-gray-300 bg-white/20 
+                        relative overflow-hidden">
             <PhaserGame 
               difficulty={gameConfig.difficulty} 
               loadFromStorage={gameConfig.loadFromStorage} 
@@ -105,27 +114,7 @@ export default function App() {
             />
           </div>
 
-          <div className="flex flex-wrap justify-center gap-5 mt-6 p-4 bg-white/30 rounded-lg border border-white/50 shadow-lg backdrop-blur-md max-w-sm">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((id) => {
-              const remaining = counters[id] || 0;
-              const isDisabled = remaining <= 0;
-
-              return (
-                <div key={id} className="flex flex-col items-center gap-1">
-                  <button
-                    disabled={isDisabled}
-                    onClick={() => window.dispatchEvent(new CustomEvent('place-krugos-ball', { detail: id }))}
-                    className={`w-12 h-12 transition-transform active:scale-90 hover:scale-110 ${isDisabled ? 'opacity-30' : 'opacity-100'}`}
-                  >
-                    <img src={`/assets/balls/ball_${id}.png`} alt={`ball_${id}`} className="w-full h-full object-contain drop-shadow-md" />
-                  </button>
-                  <span className={`font-bold text-[16px] ${isDisabled ? 'text-gray-400' : 'text-gray-700'}`}>
-                    {remaining}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          <AnimalsPanel counters={counters}/>
 
         </div>
       )}
