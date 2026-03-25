@@ -9,7 +9,8 @@ const Logotype = ({ height } : {height : number}) => {
                     <img 
                         src={`/assets/ui/logo/${i}.png`}
                         alt={i}
-                        className={`h-${height} object-contain drop-shadow-[2px_3px_2px_rgba(0,0,0,0.25)]`}
+                        style={{ height: `${height * 0.25}rem` }}
+                        className='object-contain drop-shadow-[2px_3px_2px_rgba(0,0,0,0.25)]'
                     />
                 </div>
             );

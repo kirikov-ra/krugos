@@ -217,12 +217,6 @@ export class GameScene extends Phaser.Scene {
     this.currentBalls = Array.from({ length: 9 }, () => new Array(9).fill(null));
   }
 
-  private formatTime(seconds: number): string {
-    const m = Math.floor(Math.max(0, seconds) / 60);
-    const s = Math.max(0, seconds) % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  }
-
   private onTimerTick() {
     if (this.isGameOver || this.isPaused) return; 
     this.timeRemaining--;
