@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { MainMenu } from './components/MainMenu';
 import { PhaserGame } from './components/PhaserGame';
-import type { IHudData, ISelectionCounters } from './game/types';
+import type { IGameOverData, IHudData, ISelectionCounters } from './game/types';
 import type { Difficulty } from 'sudoku-gen/dist/types/difficulty.type';
 import AnimalsPanel from './components/AnimalsPanel';
 import InfoPanel from './components/InfoPanel';
 import PauseModal from './components/PauseModal';
+import GameOverModal from './components/GameOverModal';
 
 type GameState = 'menu' | 'playing';
 
@@ -24,6 +25,27 @@ export default function App() {
   const [hud, setHud] = useState<IHudData>({ time: 1200, lives: 3, hints: 3 });
   const [hintError, setHintError] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [gameOverData, setGameOverData] = useState<IGameOverData | null>(null);
+
+  const handleExitToMenu = useCallback(() => {
+    setGameState('menu');
+    setIsPaused(false);
+    setGameOverData(null);
+  }, []);
+
+  const handleRestartGame = () => {
+    setGameOverData(null);
+    window.dispatchEvent(new CustomEvent('krugos-restart-game'));
+  };
+
+  useEffect(() => {
+    const handleGameOver = (e: Event) => {
+      const customEvent = e as CustomEvent<IGameOverData>;
+      setGameOverData(customEvent.detail);
+    };
+    window.addEventListener('krugos-game-over', handleGameOver);
+    return () => window.removeEventListener('krugos-game-over', handleGameOver);
+  }, []);
 
   useEffect(() => {
     const handlePauseState = (e: Event) => {
@@ -83,11 +105,6 @@ export default function App() {
     setGameState('playing');
   };
 
-  const handleExitToMenu = useCallback(() => {
-    setGameState('menu');
-    setIsPaused(false);
-  }, []);
-
   return (
     <div className="w-screen h-screen relative overflow-hidden bg-gradient-to-b from-[#ffffff] to-[#c8cfd7]">
       {gameState === 'menu' && (
@@ -107,13 +124,7 @@ export default function App() {
               onExitToMenu={handleExitToMenu} 
             />
 
-            {isPaused && <PauseModal />}
-
-            {hintError && (
-              <div className="absolute top-[30%] left-1/2 -translate-x-1/2 z-50 px-6 py-4 bg-[#4781ff]/95 backdrop-blur-md text-white font-extrabold text-lg rounded-2xl shadow-[0_10px_25px_rgba(71, 83, 255, 0.4)] border-2 border-white/20 pointer-events-none text-center w-[85%] max-w-[320px]">
-                {hintError}
-              </div>
-            )}
+            
           </div>
 
           <AnimalsPanel 
@@ -121,8 +132,24 @@ export default function App() {
             hints={hud.hints}
           />
 
+          
+
         </div>
       )}
+      {isPaused && <PauseModal />}
+
+            {gameOverData && (
+              <GameOverModal 
+                data={gameOverData} 
+                onRestart={handleRestartGame} 
+              />
+            )}
+
+            {hintError && (
+              <div className="absolute top-[30%] left-1/2 -translate-x-1/2 z-50 px-6 py-4 bg-[#4781ff]/95 backdrop-blur-md text-white font-extrabold text-lg rounded-2xl shadow-[0_10px_25px_rgba(71, 83, 255, 0.4)] border-2 border-white/20 pointer-events-none text-center w-[85%] max-w-[320px]">
+                {hintError}
+              </div>
+            )}
     </div>
   );
 }

@@ -129,10 +129,19 @@ export class GameScene extends Phaser.Scene {
       const exitCallback = this.registry.get('onExitToMenu');
       if (exitCallback) exitCallback();
     };
+
+    const handleRestartGame = () => {
+      this.scene.restart({ 
+        puzzle: this.currentPuzzleStr, 
+        solution: this.currentSolutionStr,
+        difficulty: this.gameDifficulty
+      });
+    };
     
     window.addEventListener('pause-krugos-game', handlePauseGame);
     window.addEventListener('krugos-resume-game', handleResumeGame);
     window.addEventListener('krugos-exit-to-menu', handleExitToMenu);
+    window.addEventListener('krugos-restart-game', handleRestartGame);
 
     this.events.once('destroy', () => {
       window.removeEventListener('place-krugos-ball', handlePlaceBall);
@@ -150,6 +159,7 @@ export class GameScene extends Phaser.Scene {
       window.removeEventListener('use-krugos-hint', handleUseHint);
       window.removeEventListener('krugos-resume-game', handleResumeGame);
       window.removeEventListener('krugos-exit-to-menu', handleExitToMenu);
+      window.removeEventListener('krugos-restart-game', handleRestartGame);
     });
   }
 
@@ -227,7 +237,7 @@ export class GameScene extends Phaser.Scene {
       this.isGameOver = true;
       this.timerEvent.remove();
       this.clearSave();
-      this.showGameOverModal('time');
+      this.dispatchGameOver('time');
     }
   }
 
@@ -239,7 +249,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.lives <= 0) {
       this.clearSave();
-      this.showGameOverModal('no_lives');
+      this.dispatchGameOver('no_lives');
       this.isGameOver = true;
       this.timerEvent.remove();
     } else {
@@ -247,8 +257,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private showGameOverModal(reason: 'time' | 'no_lives' | 'win'): void {
-    const { width, height } = this.scale;
+  private dispatchGameOver(reason: 'win' | 'time' | 'no_lives'): void {
     let userFilledCount = 0;
     let emptyCount = 0;
     for (let r = 0; r < 9; r++) {
@@ -259,51 +268,17 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    this.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0).setDepth(100).setInteractive();
-    const modalW = width * 0.85;
-    const modalH = 420;
-    const modalX = width / 2;
-    const modalY = height / 2;
-    const bg = this.add.graphics().setDepth(101);
-    bg.fillStyle(0xffffff, 1);
-    bg.fillRoundedRect(modalX - modalW / 2, modalY - modalH / 2, modalW, modalH, 16);
-    bg.lineStyle(4, 0x000000, 1);
-    bg.strokeRoundedRect(modalX - modalW / 2, modalY - modalH / 2, modalW, modalH, 16);
-
-    const titleText = reason === 'win' ? 'ВЫ ПОБЕДИЛИ!' : reason === 'time' ? 'ВРЕМЯ ВЫШЛО!' : 'ЖИЗНИ ЗАКОНЧИЛИСЬ!';
-    const titleColor = reason === 'win' ? '#388e3c' : '#d32f2f';
-
-    this.add.text(modalX, modalY - modalH / 2 + 40, titleText, {
-      fontSize: '26px', color: titleColor, fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(102);
-
-    let statsText = `Осталось жизней: ${this.lives}\nВремя: ${this.formatTime(this.timeRemaining)}\nЗаполнено клеток: ${userFilledCount}`;
-    if (reason !== 'win') statsText += `\nОсталось пустых: ${emptyCount}`;
-
-    this.add.text(modalX, modalY - 40, statsText, {
-      fontSize: '20px', color: '#333', align: 'center', lineSpacing: 10
-    }).setOrigin(0.5).setDepth(102);
-
-    const btnW = modalW * 0.8;
-    const btnH = 55;
-    const btnRestartY = modalY + 60;
-    
-    const btnRestartBg = this.add.rectangle(modalX, btnRestartY, btnW, btnH, 0xe0e0e0).setDepth(102).setStrokeStyle(2, 0x000000).setInteractive();
-    this.add.text(modalX, btnRestartY, 'ПОВТОРИТЬ ПАРТИЮ', { fontSize: '18px', color: '#000', fontStyle: 'bold' }).setOrigin(0.5).setDepth(103);
-    btnRestartBg.on('pointerdown', () => { 
-      this.scene.restart({ 
-        puzzle: this.currentPuzzleStr, 
-        solution: this.currentSolutionStr,
-        difficulty: this.gameDifficulty
-      }); 
-    });
-    const btnNewY = modalY + 140;
-    const btnNewBg = this.add.rectangle(modalX, btnNewY, btnW, btnH, 0x4dd0e1).setDepth(102).setStrokeStyle(2, 0x000000).setInteractive();
-    this.add.text(modalX, btnNewY, 'В МЕНЮ', { fontSize: '18px', color: '#000', fontStyle: 'bold' }).setOrigin(0.5).setDepth(103);
-    btnNewBg.on('pointerdown', () => {
-      const exitCallback = this.registry.get('onExitToMenu');
-      if (exitCallback) exitCallback();
-    });
+    window.dispatchEvent(new CustomEvent('krugos-game-over', {
+      detail: {
+        reason,
+        stats: {
+          lives: this.lives,
+          timeRemaining: this.timeRemaining,
+          userFilledCount,
+          emptyCount
+        }
+      }
+    }));
   }
 
   private drawKrugosBoard() {
@@ -517,7 +492,7 @@ export class GameScene extends Phaser.Scene {
       this.isGameOver = true;
       this.timerEvent.remove();
       this.clearSave();
-      this.showGameOverModal('win');
+      this.dispatchGameOver('win');
     }
   }
 
