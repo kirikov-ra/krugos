@@ -1,4 +1,5 @@
 import type { IHudData } from "../game/types";
+import Logotype from "./Logotype";
 
 const InfoPanel = ({ hud }: { hud: IHudData }) => {
 
@@ -18,21 +19,7 @@ const InfoPanel = ({ hud }: { hud: IHudData }) => {
               II
           </button>
 
-          <div className='flex flex-nowrap gap-x-1'>
-              {['K','R','U','G','O','S'].map((i, index) => {
-              return (
-                  <div 
-                  key={index} 
-                  >
-                  <img 
-                      src={`/assets/ui/logo/${i}.png`}
-                      alt={i}
-                      className="h-6 object-contain drop-shadow-[2px_3px_2px_rgba(0,0,0,0.25)]" 
-                  />
-                  </div>
-              );
-              })}
-          </div>
+          <Logotype height={6}/>
 
           <button
             disabled={true}

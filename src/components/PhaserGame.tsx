@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import * as Phaser from 'phaser';
 import { GameScene } from '../game/scenes/GameScene';
 import type { Difficulty } from 'sudoku-gen/dist/types/difficulty.type';
@@ -9,7 +9,7 @@ interface PhaserGameProps {
   onExitToMenu: () => void;
 }
 
-export const PhaserGame: React.FC<PhaserGameProps> = ({ difficulty, loadFromStorage, onExitToMenu }) => {
+export const PhaserGame = ({ difficulty, loadFromStorage, onExitToMenu } : PhaserGameProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
 

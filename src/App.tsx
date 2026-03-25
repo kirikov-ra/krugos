@@ -106,7 +106,7 @@ export default function App() {
   };
 
   return (
-    <div className="w-screen h-screen relative overflow-hidden bg-gradient-to-b from-[#ffffff] to-[#c8cfd7]">
+    <div className="w-screen h-screen full relative overflow-hidden bg-gradient-to-b from-[#ffffff] to-[#c8cfd7]">
       {gameState === 'menu' && (
         <MainMenu onStartGame={handleStartGame} />
       )}
