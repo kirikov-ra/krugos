@@ -26,5 +26,9 @@ declare global {
     
     'use-krugos-hint': CustomEvent<void>;
     'krugos-hint-error': CustomEvent<string>;
+
+    'krugos-pause-state': CustomEvent<boolean>;
+    'krugos-resume-game': CustomEvent<void>;
+    'krugos-exit-to-menu': CustomEvent<void>;
   }
 }

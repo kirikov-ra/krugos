@@ -5,6 +5,7 @@ import type { IHudData, ISelectionCounters } from './game/types';
 import type { Difficulty } from 'sudoku-gen/dist/types/difficulty.type';
 import AnimalsPanel from './components/AnimalsPanel';
 import InfoPanel from './components/InfoPanel';
+import PauseModal from './components/PauseModal';
 
 type GameState = 'menu' | 'playing';
 
@@ -21,10 +22,17 @@ export default function App() {
   });
 
   const [hud, setHud] = useState<IHudData>({ time: 1200, lives: 3, hints: 3 });
-
-  
-
   const [hintError, setHintError] = useState<string | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    const handlePauseState = (e: Event) => {
+      const customEvent = e as CustomEvent<boolean>;
+      setIsPaused(customEvent.detail);
+    };
+    window.addEventListener('krugos-pause-state', handlePauseState);
+    return () => window.removeEventListener('krugos-pause-state', handlePauseState);
+  }, []);
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
@@ -77,6 +85,7 @@ export default function App() {
 
   const handleExitToMenu = useCallback(() => {
     setGameState('menu');
+    setIsPaused(false);
   }, []);
 
   return (
@@ -97,6 +106,8 @@ export default function App() {
               loadFromStorage={gameConfig.loadFromStorage} 
               onExitToMenu={handleExitToMenu} 
             />
+
+            {isPaused && <PauseModal />}
 
             {hintError && (
               <div className="absolute top-[30%] left-1/2 -translate-x-1/2 z-50 px-6 py-4 bg-[#4781ff]/95 backdrop-blur-md text-white font-extrabold text-lg rounded-2xl shadow-[0_10px_25px_rgba(71, 83, 255, 0.4)] border-2 border-white/20 pointer-events-none text-center w-[85%] max-w-[320px]">

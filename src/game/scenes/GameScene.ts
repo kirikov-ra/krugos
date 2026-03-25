@@ -28,12 +28,15 @@ export class GameScene extends Phaser.Scene {
 
   private lives: number = 3;
   private hintsRemaining: number = 3;
+  private isLoadedFromSave: boolean = false;
   
   private gameDifficulty: 'easy' | 'medium' | 'hard' | 'expert' = 'easy';
 
   constructor() { super('GameScene'); }
 
   init(data: { difficulty?: Difficulty; loadFromStorage?: boolean; puzzle?: string; solution?: string } = {}) {
+    this.isLoadedFromSave = false;
+    
     if (data.loadFromStorage) {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -49,6 +52,7 @@ export class GameScene extends Phaser.Scene {
           this.timeRemaining = saveState.timeRemaining;
           this.gameDifficulty = saveState.difficulty;
           this.hintsRemaining = saveState.hintsRemaining ?? 3;
+          this.isLoadedFromSave = true;
           return; 
         } catch (e) {
           console.error("Save load failed:", e);
@@ -113,7 +117,22 @@ export class GameScene extends Phaser.Scene {
     const handlePauseGame = () => {
       this.pauseGame();
     };
+
+    const handleResumeGame = () => {
+      this.isPaused = false;
+      this.timerEvent.paused = false;
+      window.dispatchEvent(new CustomEvent('krugos-pause-state', { detail: false }));
+    };
+
+    const handleExitToMenu = () => {
+      this.saveGameState();
+      const exitCallback = this.registry.get('onExitToMenu');
+      if (exitCallback) exitCallback();
+    };
+    
     window.addEventListener('pause-krugos-game', handlePauseGame);
+    window.addEventListener('krugos-resume-game', handleResumeGame);
+    window.addEventListener('krugos-exit-to-menu', handleExitToMenu);
 
     this.events.once('destroy', () => {
       window.removeEventListener('place-krugos-ball', handlePlaceBall);
@@ -129,6 +148,8 @@ export class GameScene extends Phaser.Scene {
       window.removeEventListener('place-krugos-ball', handlePlaceBall as EventListener);
       window.removeEventListener('pause-krugos-game', handlePauseGame);
       window.removeEventListener('use-krugos-hint', handleUseHint);
+      window.removeEventListener('krugos-resume-game', handleResumeGame);
+      window.removeEventListener('krugos-exit-to-menu', handleExitToMenu);
     });
   }
 
@@ -160,78 +181,28 @@ export class GameScene extends Phaser.Scene {
     if (this.isGameOver || this.isPaused) return;
     this.isPaused = true;
     this.timerEvent.paused = true; 
-    this.showPauseModal();
+    window.dispatchEvent(new CustomEvent('krugos-pause-state', { detail: true }));
   }
 
-  private showPauseModal() {
-    const { width, height } = this.scale;
-    const modalX = width / 2;
-    const modalY = height / 2;
-    const modalW = width * 0.8;
-    const modalH = 260;
+  private initSudoku(difficulty: Difficulty) {
 
-    const pauseContainer = this.add.container(0, 0).setDepth(200);
-    const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0).setInteractive();
-    pauseContainer.add(overlay);
-
-    const bg = this.add.graphics();
-    bg.fillStyle(0xffffff, 1);
-    bg.fillRoundedRect(modalX - modalW / 2, modalY - modalH / 2, modalW, modalH, 16);
-    bg.lineStyle(4, 0x000000, 1);
-    bg.strokeRoundedRect(modalX - modalW / 2, modalY - modalH / 2, modalW, modalH, 16);
-    pauseContainer.add(bg);
-
-    const title = this.add.text(modalX, modalY - modalH / 2 + 40, 'ПАУЗА', {
-      fontSize: '26px', color: '#333', fontStyle: 'bold'
-    }).setOrigin(0.5);
-    pauseContainer.add(title);
-
-    const btnW = modalW * 0.8;
-    const btnH = 55;
-    
-    const btnContinueY = modalY + 10;
-    const btnContinueBg = this.add.rectangle(modalX, btnContinueY, btnW, btnH, 0x4dd0e1).setStrokeStyle(2, 0x000000).setInteractive();
-    const btnContinueText = this.add.text(modalX, btnContinueY, 'ПРОДОЛЖИТЬ', {
-      fontSize: '18px', color: '#000', fontStyle: 'bold'
-    }).setOrigin(0.5);
-    pauseContainer.add([btnContinueBg, btnContinueText]);
-
-    btnContinueBg.on('pointerover', () => btnContinueBg.setFillStyle(0x26c6da));
-    btnContinueBg.on('pointerout', () => btnContinueBg.setFillStyle(0x4dd0e1));
-    btnContinueBg.on('pointerdown', () => {
-      pauseContainer.destroy(); 
-      this.isPaused = false;
-      this.timerEvent.paused = false; 
-    });
-
-    const btnNewY = modalY + 90;
-    const btnNewBg = this.add.rectangle(modalX, btnNewY, btnW, btnH, 0xe0e0e0).setStrokeStyle(2, 0x000000).setInteractive();
-    const btnNewText = this.add.text(modalX, btnNewY, 'В МЕНЮ', {
-      fontSize: '18px', color: '#000', fontStyle: 'bold'
-    }).setOrigin(0.5);
-    pauseContainer.add([btnNewBg, btnNewText]);
-
-    btnNewBg.on('pointerover', () => btnNewBg.setFillStyle(0xd0d0d0));
-    btnNewBg.on('pointerout', () => btnNewBg.setFillStyle(0xe0e0e0));
-    btnNewBg.on('pointerdown', () => {
-      const exitCallback = this.registry.get('onExitToMenu');
-      if (exitCallback) exitCallback();
-    });
-  }
-
-  private initSudoku(difficulty: 'easy' | 'medium' | 'hard' | 'expert') {
     if (!this.currentPuzzleStr || !this.currentSolutionStr) {
       const sudoku = getSudoku(difficulty);
       this.currentPuzzleStr = sudoku.puzzle;
       this.currentSolutionStr = sudoku.solution;
     }
+
     const parse = (str: string) => {
       const res: string[][] = [];
       for (let i = 0; i < 9; i++) res.push(str.substring(i * 9, i * 9 + 9).split(''));
       return res;
     };
-    this.board = parse(this.currentPuzzleStr);
-    this.initialBoard = JSON.parse(JSON.stringify(this.board));
+
+    if (!this.isLoadedFromSave) {
+      this.board = parse(this.currentPuzzleStr);
+      this.initialBoard = JSON.parse(JSON.stringify(this.board));
+    }
+
     this.solution = parse(this.currentSolutionStr);
     this.currentBalls = Array.from({ length: 9 }, () => new Array(9).fill(null));
   }
