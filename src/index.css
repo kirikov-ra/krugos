@@ -1,5 +1,32 @@
 @import "tailwindcss";
 
+@theme {
+  /* Формула: [темная тень] , [светлый блик] */
+  --shadow-neo-inset:
+    inset 4px 4px 8px rgba(0, 0, 0, 0.12),
+    inset -4px -4px 8px rgba(255, 255, 255, 0.9);
+
+  /* Также добавим внешнюю тень для выпуклых элементов, если понадобится */
+  --shadow-neo-flat:
+    6px 6px 12px rgba(0, 0, 0, 0.1),
+    -6px -6px 12px rgba(255, 255, 255, 0.8);
+}
+
+@layer base {
+
+  :root {
+    --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  html,
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+
 body {
   margin: 0;
   padding: 0;

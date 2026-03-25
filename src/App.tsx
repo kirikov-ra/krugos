@@ -103,9 +103,21 @@ export default function App() {
             
               
 
-            <h1 className="text-4xl font-black text-gray-700 drop-shadow-sm tracking-tighter">
-              KRUGOS
-            </h1>
+            <div className='flex flex-nowrap gap-x-1'>
+              {['K','R','U','G','O','S'].map((i, index) => {
+                return (
+                  <div 
+                    key={index} 
+                  >
+                    <img 
+                      src={`/assets/ui/logo/${i}.png`}
+                      alt={i}
+                      className="h-6 object-contain drop-shadow-[2px_3px_2px_rgba(0,0,0,0.25)]" 
+                    />
+                  </div>
+                );
+              })}
+            </div>
 
             <div className="flex flex-col items-end">
               <span className="text-red-600 font-extrabold text-2xl tracking-wide">
@@ -132,8 +144,8 @@ export default function App() {
             </div>
           </div>
 
-          <div className="my-6 w-full max-w-sm aspect-square rounded-lg border-[3px] border-gray-300 bg-white/20 
-                        relative overflow-hidden">
+          <div className="my-4 w-full max-w-sm aspect-square rounded-xl border-[3px] border-gray-300 bg-white/20 
+                        relative overflow-hidden shadow-lg">
             <PhaserGame 
               difficulty={gameConfig.difficulty} 
               loadFromStorage={gameConfig.loadFromStorage} 

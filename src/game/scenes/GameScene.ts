@@ -125,7 +125,7 @@ export class GameScene extends Phaser.Scene {
     };
     window.addEventListener('use-krugos-hint', handleUseHint);
 
-    this.events.once('destroy', () => {
+    this.events.once('shutdown', () => {
       window.removeEventListener('place-krugos-ball', handlePlaceBall as EventListener);
       window.removeEventListener('pause-krugos-game', handlePauseGame);
       window.removeEventListener('use-krugos-hint', handleUseHint);
@@ -319,8 +319,13 @@ export class GameScene extends Phaser.Scene {
     
     const btnRestartBg = this.add.rectangle(modalX, btnRestartY, btnW, btnH, 0xe0e0e0).setDepth(102).setStrokeStyle(2, 0x000000).setInteractive();
     this.add.text(modalX, btnRestartY, 'ПОВТОРИТЬ ПАРТИЮ', { fontSize: '18px', color: '#000', fontStyle: 'bold' }).setOrigin(0.5).setDepth(103);
-    btnRestartBg.on('pointerdown', () => { this.scene.restart({ puzzle: this.currentPuzzleStr, solution: this.currentSolutionStr }); });
-
+    btnRestartBg.on('pointerdown', () => { 
+      this.scene.restart({ 
+        puzzle: this.currentPuzzleStr, 
+        solution: this.currentSolutionStr,
+        difficulty: this.gameDifficulty
+      }); 
+    });
     const btnNewY = modalY + 140;
     const btnNewBg = this.add.rectangle(modalX, btnNewY, btnW, btnH, 0x4dd0e1).setDepth(102).setStrokeStyle(2, 0x000000).setInteractive();
     this.add.text(modalX, btnNewY, 'В МЕНЮ', { fontSize: '18px', color: '#000', fontStyle: 'bold' }).setOrigin(0.5).setDepth(103);
