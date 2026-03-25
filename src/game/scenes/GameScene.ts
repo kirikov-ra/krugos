@@ -27,6 +27,7 @@ export class GameScene extends Phaser.Scene {
   private timerEvent!: Phaser.Time.TimerEvent;
 
   private lives: number = 3;
+  private hintsRemaining: number = 3;
   
   private gameDifficulty: 'easy' | 'medium' | 'hard' | 'expert' = 'easy';
 
@@ -47,6 +48,7 @@ export class GameScene extends Phaser.Scene {
           this.lives = saveState.lives;
           this.timeRemaining = saveState.timeRemaining;
           this.gameDifficulty = saveState.difficulty;
+          this.hintsRemaining = saveState.hintsRemaining ?? 3;
           return; 
         } catch (e) {
           console.error("Save load failed:", e);
@@ -64,6 +66,7 @@ export class GameScene extends Phaser.Scene {
 
     this.gameDifficulty = data.difficulty || 'easy';
     this.lives = 3;
+    this.hintsRemaining = 3;
     this.timeRemaining = 1200;
   }
 
@@ -99,9 +102,7 @@ export class GameScene extends Phaser.Scene {
     this.saveGameState();
     this.updateSelectionCounters();
 
-    window.dispatchEvent(new CustomEvent('update-krugos-hud', { 
-      detail: { time: this.timeRemaining, lives: this.lives } 
-    }));
+    this.updateReactHud();
 
     const handlePlaceBall = (e: Event) => {
       const customEvent = e as CustomEvent<number>;
@@ -118,6 +119,17 @@ export class GameScene extends Phaser.Scene {
       window.removeEventListener('place-krugos-ball', handlePlaceBall);
       window.removeEventListener('pause-krugos-game', handlePauseGame);
     });
+
+    const handleUseHint = () => {
+      this.useHint();
+    };
+    window.addEventListener('use-krugos-hint', handleUseHint);
+
+    this.events.once('destroy', () => {
+      window.removeEventListener('place-krugos-ball', handlePlaceBall as EventListener);
+      window.removeEventListener('pause-krugos-game', handlePauseGame);
+      window.removeEventListener('use-krugos-hint', handleUseHint);
+    });
   }
 
   private saveGameState() {
@@ -127,10 +139,17 @@ export class GameScene extends Phaser.Scene {
       currentSolutionStr: this.currentSolutionStr,
       board: this.board,
       lives: this.lives,
+      hintsRemaining: this.hintsRemaining,
       timeRemaining: this.timeRemaining,
       difficulty: this.gameDifficulty
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
+  }
+
+  private updateReactHud() {
+    window.dispatchEvent(new CustomEvent('update-krugos-hud', { 
+      detail: { time: this.timeRemaining, lives: this.lives, hints: this.hintsRemaining } 
+    }));
   }
 
   private clearSave() {
@@ -227,9 +246,7 @@ export class GameScene extends Phaser.Scene {
     if (this.isGameOver || this.isPaused) return; 
     this.timeRemaining--;
 
-    window.dispatchEvent(new CustomEvent('update-krugos-hud', { 
-      detail: { time: this.timeRemaining, lives: this.lives } 
-    }));
+    this.updateReactHud();
     
     if (this.timeRemaining % 10 === 0) {
       this.saveGameState(); 
@@ -247,9 +264,7 @@ export class GameScene extends Phaser.Scene {
     if (this.isGameOver || this.isPaused) return;
     this.lives--;
 
-    window.dispatchEvent(new CustomEvent('update-krugos-hud', { 
-      detail: { time: this.timeRemaining, lives: this.lives } 
-    }));
+    this.updateReactHud();
 
     if (this.lives <= 0) {
       this.clearSave();
@@ -455,6 +470,32 @@ export class GameScene extends Phaser.Scene {
       container.setScale(1); 
       this.currentBalls[row][col] = container;
     }
+  }
+
+  private useHint(): void {
+    if (this.isGameOver || this.isPaused) return;
+
+    if (this.hintsRemaining <= 0) {
+      window.dispatchEvent(new CustomEvent('krugos-hint-error', { 
+        detail: 'Подсказки закончились!' 
+      }));
+      return;
+    }
+
+    if (!this.selectedCell) {
+      window.dispatchEvent(new CustomEvent('krugos-hint-error', { 
+        detail: 'Выберите пустую ячейку для подсказки' 
+      }));
+      return;
+    }
+
+    this.hintsRemaining--;
+    this.updateReactHud();
+
+    const { row, col } = this.selectedCell;
+    const correctId = parseInt(this.solution[row][col], 10);
+
+    this.placeKrugos(correctId);
   }
 
   private placeKrugos(id: number) {

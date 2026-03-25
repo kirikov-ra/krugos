@@ -19,13 +19,37 @@ export default function App() {
     1:9, 2:9, 3:9, 4:9, 5:9, 6:9, 7:9, 8:9, 9:9
   });
 
-  const [hud, setHud] = useState<IHudData>({ time: 1200, lives: 3 });
+  const [hud, setHud] = useState<IHudData>({ time: 1200, lives: 3, hints: 3 });
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(Math.max(0, seconds) / 60);
     const s = Math.max(0, seconds) % 60;
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
+
+  const [hintError, setHintError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const handleHintError = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      setHintError(customEvent.detail);
+      
+      if (timeoutId) clearTimeout(timeoutId);
+      
+      timeoutId = setTimeout(() => {
+        setHintError(null);
+      }, 3000);
+    };
+
+    window.addEventListener('krugos-hint-error', handleHintError);
+    
+    return () => {
+      window.removeEventListener('krugos-hint-error', handleHintError);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
 
   useEffect(() => {
     const handleUpdateCounters = (e: Event) => {
@@ -76,6 +100,9 @@ export default function App() {
               II
             </button>
 
+            
+              
+
             <h1 className="text-4xl font-black text-gray-700 drop-shadow-sm tracking-tighter">
               KRUGOS
             </h1>
@@ -112,9 +139,18 @@ export default function App() {
               loadFromStorage={gameConfig.loadFromStorage} 
               onExitToMenu={handleExitToMenu} 
             />
+
+            {hintError && (
+              <div className="absolute top-[30%] left-1/2 -translate-x-1/2 z-50 px-6 py-4 bg-[#4781ff]/95 backdrop-blur-md text-white font-extrabold text-lg rounded-2xl shadow-[0_10px_25px_rgba(71, 83, 255, 0.4)] border-2 border-white/20 pointer-events-none text-center w-[85%] max-w-[320px]">
+                {hintError}
+              </div>
+            )}
           </div>
 
-          <AnimalsPanel counters={counters}/>
+          <AnimalsPanel 
+            counters={counters}
+            hints={hud.hints}
+          />
 
         </div>
       )}
