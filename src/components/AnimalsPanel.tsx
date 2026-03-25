@@ -7,7 +7,7 @@ interface AnimalsPanelProps {
 
 const AnimalsPanel = ({ counters, hints }: AnimalsPanelProps) => {
   return (
-    <div className="flex flex-wrap justify-between gap-2 p-2 bg-white/30 rounded-xl border border-white/50 shadow-lg backdrop-blur-md max-w-sm">
+    <div className="flex flex-wrap justify-between gap-2 p-2 bg-white/30 rounded-xl border border-white/50 shadow-lg max-w-sm">
       {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((id) => {
         const remaining = counters[id] || 0;
         const isDisabled = remaining <= 0;

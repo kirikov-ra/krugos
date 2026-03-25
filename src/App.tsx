@@ -4,6 +4,7 @@ import { PhaserGame } from './components/PhaserGame';
 import type { IHudData, ISelectionCounters } from './game/types';
 import type { Difficulty } from 'sudoku-gen/dist/types/difficulty.type';
 import AnimalsPanel from './components/AnimalsPanel';
+import InfoPanel from './components/InfoPanel';
 
 type GameState = 'menu' | 'playing';
 
@@ -21,11 +22,7 @@ export default function App() {
 
   const [hud, setHud] = useState<IHudData>({ time: 1200, lives: 3, hints: 3 });
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(Math.max(0, seconds) / 60);
-    const s = Math.max(0, seconds) % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
+  
 
   const [hintError, setHintError] = useState<string | null>(null);
 
@@ -91,58 +88,7 @@ export default function App() {
       {gameState === 'playing' && (
         <div className="relative grow flex flex-col items-center justify-center p-4">
 
-          <div className="w-full max-w-sm flex justify-between items-center">
-            
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent('pause-krugos-game'))}
-              className="w-12 h-12 bg-white/40 border-2 border-white/60 rounded-xl font-black text-gray-700 shadow-md active:scale-95 transition-transform flex items-center justify-center text-xl"
-            >
-              II
-            </button>
-
-            
-              
-
-            <div className='flex flex-nowrap gap-x-1'>
-              {['K','R','U','G','O','S'].map((i, index) => {
-                return (
-                  <div 
-                    key={index} 
-                  >
-                    <img 
-                      src={`/assets/ui/logo/${i}.png`}
-                      alt={i}
-                      className="h-6 object-contain drop-shadow-[2px_3px_2px_rgba(0,0,0,0.25)]" 
-                    />
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="flex flex-col items-end">
-              <span className="text-red-600 font-extrabold text-2xl tracking-wide">
-                {formatTime(hud.time)}
-              </span>
-              <div className="flex gap-1 mt-1">
-                {[1, 2, 3].map((i) => {
-                  const isLost = i > hud.lives;
-                  
-                  return (
-                    <div 
-                      key={i} 
-                      className={`w-5 h-5 transition-all duration-300 ${isLost ? 'opacity-30 grayscale scale-90' : 'opacity-100 scale-100'}`}
-                    >
-                      <img 
-                        src="/assets/ui/heart.png" 
-                        alt="heart" 
-                        className="w-full h-full object-contain drop-shadow-sm" 
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          <InfoPanel hud={hud} />
 
           <div className="my-4 w-full max-w-sm aspect-square rounded-xl border-[3px] border-gray-300 bg-white/20 
                         relative overflow-hidden shadow-lg">
