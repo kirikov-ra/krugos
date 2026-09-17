@@ -9,7 +9,7 @@ $expected = @{
     'Krugos.Presentation' = @('Krugos.Application', 'Krugos.Domain')
     'Krugos.Editor' = @()
     'Krugos.Tests.EditMode' = @(
-        'Krugos.Domain', 'Krugos.Application', 'UnityEngine.TestRunner', 'UnityEditor.TestRunner'
+        'Krugos.Domain', 'Krugos.Application', 'Krugos.Infrastructure', 'UnityEngine.TestRunner', 'UnityEditor.TestRunner'
     )
 }
 

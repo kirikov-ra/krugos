@@ -21,14 +21,14 @@ Backend не создан. Игровой логики, UI, сцен и инте
 | Infrastructure | Место внешних адаптеров; пока интеграций нет | Application, Domain |
 | Presentation | Unity-представление; пока компонентов нет | Application, Domain |
 | Editor | Только инструменты редактора; пока инструментов нет | Пока нет |
-| Tests/EditMode | Минимальные архитектурные smoke-тесты | Domain, Application |
+| Tests/EditMode | Архитектурные и функциональные тесты, включая built-in provider KRG-004 | Domain, Application, Infrastructure |
 
 ```text
 Krugos.Application    -> Krugos.Domain
 Krugos.Infrastructure -> Krugos.Application, Krugos.Domain
 Krugos.Presentation   -> Krugos.Application, Krugos.Domain
 Krugos.Editor         -> [нет ссылок на сборки Krugos]
-Krugos.Tests.EditMode -> Krugos.Domain, Krugos.Application
+Krugos.Tests.EditMode -> Krugos.Domain, Krugos.Application, Krugos.Infrastructure
 ```
 
 Presentation может использовать UnityEngine. Infrastructure может использовать
@@ -36,6 +36,9 @@ Unity API при необходимости конкретного адапте�
 ограничены `includePlatforms: ["Editor"]`; runtime-сборки на них не ссылаются.
 Тестовая сборка использует Unity Test Framework, NUnit и UnityEditor для проверки
 фактического графа компиляции.
+
+В KRG-004 добавлена явная ссылка Tests.EditMode на Infrastructure для проверки
+встроенного provider. Направления зависимостей runtime-сборок не изменены.
 
 В Domain и Application установлено `noEngineReferences: true`.
 Domain должен компилироваться и тестироваться как обычный C#, без Unity:

@@ -22,7 +22,7 @@ Application    -> Domain
 Infrastructure -> Application, Domain
 Presentation   -> Application, Domain, UnityEngine
 Editor         -> UnityEditor (только Editor)
-Tests.EditMode -> Domain, Application, Unity Test Framework (только Editor)
+Tests.EditMode -> Domain, Application, Infrastructure, Unity Test Framework (только Editor)
 ```
 
 Domain **не должен зависеть от UnityEngine или любых Unity-сборок**.

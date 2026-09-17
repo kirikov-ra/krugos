@@ -32,14 +32,15 @@ namespace Krugos.Tests.EditMode
         public void CompilerReferencesRespectLayerBoundaries()
         {
             var assemblies = CompilationPipeline.GetAssemblies(AssembliesType.Editor);
-            var names = new[] { "Domain", "Application", "Infrastructure", "Presentation", "Editor" };
+            var names = new[] { "Domain", "Application", "Infrastructure", "Presentation", "Editor", "Tests.EditMode" };
             var allowed = new[]
             {
                 Array.Empty<string>(),
                 new[] { "Krugos.Domain" },
                 new[] { "Krugos.Application", "Krugos.Domain" },
                 new[] { "Krugos.Application", "Krugos.Domain" },
-                Array.Empty<string>()
+                Array.Empty<string>(),
+                new[] { "Krugos.Domain", "Krugos.Application", "Krugos.Infrastructure" }
             };
 
             for (var i = 0; i < names.Length; i++)

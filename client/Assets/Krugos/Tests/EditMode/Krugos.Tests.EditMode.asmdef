@@ -4,6 +4,7 @@
   "references": [
     "Krugos.Domain",
     "Krugos.Application",
+    "Krugos.Infrastructure",
     "UnityEngine.TestRunner",
     "UnityEditor.TestRunner"
   ],
