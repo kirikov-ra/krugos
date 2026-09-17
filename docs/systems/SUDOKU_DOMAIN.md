@@ -149,9 +149,9 @@ Canonical solution хранится, чтобы будущая игровая с
 
 ## Границы задачи
 
-Животных в Domain нет: они являются визуальным соответствием логическим значениям.
-Будущий mapping `значение → животное` относится к Presentation/Application и не
-влияет на правила Sudoku.
+Животных в Domain нет: они являются соответствием логическим значениям.
+Mapping `SudokuValue ↔ AnimalId` реализован в чистом Application (KRG-006)
+и не влияет на правила Sudoku. Контракт — в [ANIMAL_SYMBOLS.md](ANIMAL_SYMBOLS.md).
 
 За пределами KRG-004 остаются generator, gameplay session, UI и view-модели,
 Unity-компоненты и сериализация, timer, lives, hints,
