@@ -48,6 +48,51 @@ namespace Krugos.Tests.EditMode
             "814253769" +
             "695417382";
 
+        internal const string HardPuzzle =
+            "100007090" +
+            "030020008" +
+            "009600500" +
+            "005300900" +
+            "010080002" +
+            "600004000" +
+            "300000010" +
+            "040000007" +
+            "007000300";
+
+        internal const string SeventeenGivenPuzzle =
+            "000000010" +
+            "400000000" +
+            "020000000" +
+            "000050407" +
+            "008000300" +
+            "001090000" +
+            "300400200" +
+            "050100000" +
+            "000806000";
+
+        // Removing this 6/7 rectangle from ClassicSolution leaves exactly two completions.
+        internal const string TwoSolutionPuzzle =
+            "534008912" +
+            "672195348" +
+            "198342567" +
+            "859001423" +
+            "426853791" +
+            "713924856" +
+            "961537284" +
+            "287419635" +
+            "345286179";
+
+        internal const string ImmediateUnsolvablePuzzle =
+            "123456780" + "000000009" + "000000000" +
+            "000000000" + "000000000" + "000000000" +
+            "000000000" + "000000000" + "000000000";
+
+        // The locally legal 1 at (0, 2) contradicts the unique ClassicSolution.
+        internal const string UnsolvablePuzzle =
+            "531070000" + "600195000" + "098000060" +
+            "800060003" + "400803001" + "700020006" +
+            "060000280" + "000419005" + "000080079";
+
         internal static int?[] Parse(string text)
         {
             if (text.Length != 81)
