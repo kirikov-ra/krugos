@@ -1,0 +1,17 @@
+{
+  "name": "Krugos.Infrastructure",
+  "rootNamespace": "Krugos.Infrastructure",
+  "references": [
+    "Krugos.Application",
+    "Krugos.Domain"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

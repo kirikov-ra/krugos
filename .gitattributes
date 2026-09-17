@@ -1,0 +1,14 @@
+# Limit normalization to the new foundation; preserve legacy application files.
+/AGENTS.md text eol=lf
+/.editorconfig text eol=lf
+/.gitattributes text eol=lf
+/.gitignore text eol=lf
+/docs/** text eol=lf
+/tools/** text eol=lf
+/client/** text=auto
+/client/**/*.cs text eol=lf
+/client/**/*.asmdef text eol=lf
+/client/**/*.meta text eol=lf
+/client/**/*.asset text eol=lf
+/client/**/*.json text eol=lf
+/client/**/*.txt text eol=lf
