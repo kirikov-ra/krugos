@@ -32,15 +32,17 @@ namespace Krugos.Tests.EditMode
         public void CompilerReferencesRespectLayerBoundaries()
         {
             var assemblies = CompilationPipeline.GetAssemblies(AssembliesType.Editor);
-            var names = new[] { "Domain", "Application", "Infrastructure", "Presentation", "Editor", "Tests.EditMode" };
+            var names = new[] { "Domain", "Application", "Infrastructure", "Presentation", "Bootstrap", "Editor", "Tests.EditMode", "Tests.PlayMode" };
             var allowed = new[]
             {
                 Array.Empty<string>(),
                 new[] { "Krugos.Domain" },
                 new[] { "Krugos.Application", "Krugos.Domain" },
                 new[] { "Krugos.Application", "Krugos.Domain" },
-                Array.Empty<string>(),
-                new[] { "Krugos.Domain", "Krugos.Application", "Krugos.Infrastructure" }
+                new[] { "Krugos.Presentation", "Krugos.Infrastructure", "Krugos.Application", "Krugos.Domain" },
+                new[] { "Krugos.Bootstrap" },
+                new[] { "Krugos.Domain", "Krugos.Application", "Krugos.Infrastructure", "Krugos.Presentation", "Krugos.Bootstrap" },
+                new[] { "Krugos.Domain", "Krugos.Application", "Krugos.Presentation", "Krugos.Bootstrap" }
             };
 
             for (var i = 0; i < names.Length; i++)
@@ -63,15 +65,17 @@ namespace Krugos.Tests.EditMode
         [Test]
         public void PlayerCompilationExcludesEditorAndTests()
         {
-            var names = CompilationPipeline.GetAssemblies(AssembliesType.Player)
+            var names = CompilationPipeline.GetAssemblies(AssembliesType.PlayerWithoutTestAssemblies)
                 .Select(assembly => assembly.name).ToArray();
 
             Assert.That(names, Does.Contain("Krugos.Domain"));
             Assert.That(names, Does.Contain("Krugos.Application"));
             Assert.That(names, Does.Contain("Krugos.Infrastructure"));
             Assert.That(names, Does.Contain("Krugos.Presentation"));
+            Assert.That(names, Does.Contain("Krugos.Bootstrap"));
             Assert.That(names, Does.Not.Contain("Krugos.Editor"));
             Assert.That(names, Does.Not.Contain("Krugos.Tests.EditMode"));
+            Assert.That(names, Does.Not.Contain("Krugos.Tests.PlayMode"));
         }
     }
 }

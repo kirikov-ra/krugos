@@ -9,26 +9,32 @@ revision `7efac9f6c10e`, C#, режим 2D и Built-in Render Pipeline.
 Целевые платформы — Android и iOS.
 
 Прежний React/Phaser-прототип остаётся в корневых `src/`, `public/` и npm/Vite-файлах.
-Backend не создан. Игровой логики, UI, сцен и интеграций в Unity-проекте нет.
-Для импорта и EditMode-тестов bootstrap-сцена не понадобилась.
+Backend не создан. KRG-002–KRG-006 добавили Sudoku Domain, встроенный контент,
+игровую сессию и animal mapping. KRG-007 добавляет первый playable на runtime
+UI Toolkit: `Assets/Krugos/Scenes/SudokuGameplay.unity`.
+См. [GAMEPLAY_PRESENTATION.md](../systems/GAMEPLAY_PRESENTATION.md).
 
 ## Слои и зависимости
 
 | Слой в `client/Assets/Krugos/` | Ответственность | Разрешённые ссылки на слои |
 | --- | --- | --- |
-| Domain | Чистые игровые и бизнес-правила; пока логики нет | Нет |
-| Application | Сценарии использования и оркестрация; пока логики нет | Domain |
-| Infrastructure | Место внешних адаптеров; пока интеграций нет | Application, Domain |
-| Presentation | Unity-представление; пока компонентов нет | Application, Domain |
-| Editor | Только инструменты редактора; пока инструментов нет | Пока нет |
-| Tests/EditMode | Архитектурные и функциональные тесты, включая built-in provider KRG-004 | Domain, Application, Infrastructure |
+| Domain | Sudoku, solver, definition, игровая сессия | Нет |
+| Application | Контракт контента и animal mapping | Domain |
+| Infrastructure | Встроенные puzzles и development animal set | Application, Domain |
+| Presentation | UI Toolkit view/presenter, ввод и отображение сессии | Application, Domain |
+| Bootstrap | Верхний runtime composition root | Presentation, Infrastructure, Application, Domain |
+| Editor | Открытие и явное создание gameplay scene | Bootstrap |
+| Tests/EditMode | Архитектурные и функциональные тесты | Domain, Application, Infrastructure, Presentation, Bootstrap |
+| Tests/PlayMode | Smoke tests production scene и UI | Domain, Application, Presentation, Bootstrap |
 
 ```text
 Krugos.Application    -> Krugos.Domain
 Krugos.Infrastructure -> Krugos.Application, Krugos.Domain
 Krugos.Presentation   -> Krugos.Application, Krugos.Domain
-Krugos.Editor         -> [нет ссылок на сборки Krugos]
-Krugos.Tests.EditMode -> Krugos.Domain, Krugos.Application, Krugos.Infrastructure
+Krugos.Bootstrap      -> Krugos.Presentation, Krugos.Infrastructure, Krugos.Application, Krugos.Domain
+Krugos.Editor         -> Krugos.Bootstrap
+Krugos.Tests.EditMode -> Krugos.Domain, Krugos.Application, Krugos.Infrastructure, Krugos.Presentation, Krugos.Bootstrap
+Krugos.Tests.PlayMode -> Krugos.Domain, Krugos.Application, Krugos.Presentation, Krugos.Bootstrap
 ```
 
 Presentation может использовать UnityEngine. Infrastructure может использовать
@@ -37,19 +43,20 @@ Unity API при необходимости конкретного адапте�
 Тестовая сборка использует Unity Test Framework, NUnit и UnityEditor для проверки
 фактического графа компиляции.
 
-В KRG-004 добавлена явная ссылка Tests.EditMode на Infrastructure для проверки
-встроенного provider. Направления зависимостей runtime-сборок не изменены.
+Bootstrap связывает готовый provider/default animal set с Presentation без DI
+framework. Domain/Application/Infrastructure/Presentation **не ссылаются на
+Bootstrap**. Presentation **не ссылается на Infrastructure**. Тестовые сборки
+ограничены `UNITY_INCLUDE_TESTS`; Tests.PlayMode использует только runtime API
+Test Framework, а Tests.EditMode также UnityEditor.TestRunner.
 
 В Domain и Application установлено `noEngineReferences: true`.
 Domain должен компилироваться и тестироваться как обычный C#, без Unity:
 игровые правила не должны зависеть от сцены или платформенного SDK.
 У всех сборок явные ссылки, `autoReferenced: false` и `overrideReferences: true`;
 автоматические ссылки на сторонние DLL отключены. Исключение в списке DLL —
-`nunit.framework.dll` только для Tests.EditMode.
+`nunit.framework.dll` только для Tests.EditMode и Tests.PlayMode.
 
-Файлы `AssemblyInfo.cs` содержат лишь описание сборки: они позволяют компилятору
-создавать пока пустые сборки для проверки границ. Игровых типов, сервисов,
-интерфейсов и runtime-инициализации нет.
+Файлы `AssemblyInfo.cs` содержат описание сборки и сохранены из KRG-001.
 
 Будущие платформенные SDK и адаптеры хранения, HTTP, аналитики и монетизации
 должны располагаться в Infrastructure. Инструменты их настройки в редакторе —
@@ -59,23 +66,27 @@ Domain должен компилироваться и тестироваться
 
 ProjectSettings сформированы установленным редактором. Имя продукта — Krugos;
 редактор работает в режиме 2D, сериализация — Force Text, `.meta` видимы и сохраняются
-в Git. Список сцен пуст; дополнительный rendering pipeline не установлен.
+в Git. Gameplay scene включена в Editor Build Settings; дополнительный rendering pipeline не установлен.
 Настройки платформ, подписи и идентификаторы публикации не подбирались искусственно.
 
-Прямая зависимость одна: `com.unity.test-framework: 1.8.0`, встроенная версия
-Test Framework установленного редактора. Переход с подготовленной ранее версии
+Прямые зависимости: `com.unity.test-framework: 1.8.0` и добавленный в KRG-007
+`com.unity.modules.uielements: 1.0.0`. Последний необходим для runtime UI Toolkit;
+это встроенный модуль установленного редактора. Переход с подготовленной ранее версии
 пакета необходим для согласования с новой baseline редактора, а не для новой функциональности.
 Unity разрешил и записал в `packages-lock.json` следующие транзитивные зависимости:
 
 - `com.unity.ext.nunit: 2.1.0` — NUnit для тестов;
 - `com.unity.modules.imgui: 1.0.0` — зависимость Test Framework;
 - `com.unity.modules.jsonserialize: 1.0.0` — зависимость Test Framework.
+- `com.unity.modules.ui`, `com.unity.modules.hierarchycore`,
+  `com.unity.modules.physics`, `com.unity.modules.animation`: `1.0.0` —
+  штатные зависимости UI Toolkit; imgui/jsonserialize используются совместно.
 
-Все четыре записи lock-файла имеют источник `builtin`. Сторонние SDK не добавлены.
+Все девять записей lock-файла имеют источник `builtin`. Сторонние SDK не добавлены.
 При первом импорте каркаса без версии Unity автоматически добавил стандартные пакеты;
 этот импорт остановлен, manifest очищен, повторное разрешение выполнено после фиксации
-baseline. Итоговый manifest содержит только Test Framework; lock-файл и PackageCache —
-четыре указанных пакета.
+baseline. В KRG-001 manifest содержал только Test Framework и четыре записи в lock;
+расширение KRG-007 ограничено необходимым встроенным UI-модулем и его зависимостями.
 
 ## Воспроизводимые проверки
 

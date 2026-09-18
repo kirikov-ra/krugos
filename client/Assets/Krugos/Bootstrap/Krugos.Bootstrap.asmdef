@@ -1,12 +1,13 @@
 {
-  "name": "Krugos.Editor",
-  "rootNamespace": "Krugos.Editor",
+  "name": "Krugos.Bootstrap",
+  "rootNamespace": "Krugos.Bootstrap",
   "references": [
-    "Krugos.Bootstrap"
+    "Krugos.Presentation",
+    "Krugos.Infrastructure",
+    "Krugos.Application",
+    "Krugos.Domain"
   ],
-  "includePlatforms": [
-    "Editor"
-  ],
+  "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
   "overrideReferences": true,

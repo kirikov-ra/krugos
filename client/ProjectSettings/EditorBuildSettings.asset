@@ -4,5 +4,8 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Krugos/Scenes/SudokuGameplay.unity
+    guid: b1e362c45ea30924f815e34037781927
   m_configObjects: {}

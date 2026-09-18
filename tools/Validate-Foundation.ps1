@@ -7,9 +7,13 @@ $expected = @{
     'Krugos.Application' = @('Krugos.Domain')
     'Krugos.Infrastructure' = @('Krugos.Application', 'Krugos.Domain')
     'Krugos.Presentation' = @('Krugos.Application', 'Krugos.Domain')
-    'Krugos.Editor' = @()
+    'Krugos.Bootstrap' = @('Krugos.Presentation', 'Krugos.Infrastructure', 'Krugos.Application', 'Krugos.Domain')
+    'Krugos.Editor' = @('Krugos.Bootstrap')
     'Krugos.Tests.EditMode' = @(
-        'Krugos.Domain', 'Krugos.Application', 'Krugos.Infrastructure', 'UnityEngine.TestRunner', 'UnityEditor.TestRunner'
+        'Krugos.Domain', 'Krugos.Application', 'Krugos.Infrastructure', 'Krugos.Presentation', 'Krugos.Bootstrap', 'UnityEngine.TestRunner', 'UnityEditor.TestRunner'
+    )
+    'Krugos.Tests.PlayMode' = @(
+        'Krugos.Domain', 'Krugos.Application', 'Krugos.Presentation', 'Krugos.Bootstrap', 'UnityEngine.TestRunner'
     )
 }
 
@@ -23,7 +27,7 @@ function Assert-SameSet($actual, $wanted, [string]$message) {
 }
 
 $definitions = @(Get-ChildItem $assetRoot -Recurse -Filter '*.asmdef')
-Assert-Condition ($definitions.Count -eq $expected.Count) 'Expected exactly six assembly definitions.'
+Assert-Condition ($definitions.Count -eq $expected.Count) 'Unexpected assembly definition count.'
 $names = @()
 foreach ($file in $definitions) {
     $definition = Get-Content $file.FullName -Raw | ConvertFrom-Json
@@ -37,7 +41,7 @@ foreach ($file in $definitions) {
     Assert-Condition (!$definition.autoReferenced -and $definition.overrideReferences) "Implicit references enabled: $name"
     $pure = $name -in @('Krugos.Domain', 'Krugos.Application')
     Assert-Condition ($definition.noEngineReferences -eq $pure) "Incorrect engine reference setting: $name"
-    $isTest = $name -eq 'Krugos.Tests.EditMode'
+    $isTest = $name -in @('Krugos.Tests.EditMode', 'Krugos.Tests.PlayMode')
     Assert-SameSet $definition.precompiledReferences @(if ($isTest) { 'nunit.framework.dll' }) "Unexpected DLL: $name"
     Assert-SameSet $definition.defineConstraints @(if ($isTest) { 'UNITY_INCLUDE_TESTS' }) "Unexpected constraints: $name"
 }
@@ -56,8 +60,9 @@ foreach ($meta in Get-ChildItem $assetRoot -Recurse -Filter '*.meta') {
 Assert-Condition (@($guids | Sort-Object -Unique).Count -eq $guids.Count) 'Duplicate asset GUIDs.'
 
 $manifest = Get-Content (Join-Path $repository 'client/Packages/manifest.json') -Raw | ConvertFrom-Json
-Assert-SameSet @($manifest.dependencies.PSObject.Properties.Name) @('com.unity.test-framework') 'Unexpected direct package dependencies.'
+Assert-SameSet @($manifest.dependencies.PSObject.Properties.Name) @('com.unity.test-framework', 'com.unity.modules.uielements') 'Unexpected direct package dependencies.'
 Assert-Condition ($manifest.dependencies.'com.unity.test-framework' -eq '1.8.0') 'Unexpected Test Framework version.'
+Assert-Condition ($manifest.dependencies.'com.unity.modules.uielements' -eq '1.0.0') 'Unexpected UI Toolkit version.'
 
 $version = Get-Content (Join-Path $repository 'client/ProjectSettings/ProjectVersion.txt')
 Assert-Condition ($version -contains 'm_EditorVersion: 6000.6.1f1') 'Unexpected Unity baseline.'
@@ -68,6 +73,11 @@ $lockedVersions = @{
     'com.unity.ext.nunit' = '2.1.0'
     'com.unity.modules.imgui' = '1.0.0'
     'com.unity.modules.jsonserialize' = '1.0.0'
+    'com.unity.modules.uielements' = '1.0.0'
+    'com.unity.modules.ui' = '1.0.0'
+    'com.unity.modules.hierarchycore' = '1.0.0'
+    'com.unity.modules.physics' = '1.0.0'
+    'com.unity.modules.animation' = '1.0.0'
 }
 Assert-SameSet @($lock.dependencies.PSObject.Properties.Name) @($lockedVersions.Keys) 'Unexpected resolved dependencies.'
 foreach ($package in $lockedVersions.Keys) {

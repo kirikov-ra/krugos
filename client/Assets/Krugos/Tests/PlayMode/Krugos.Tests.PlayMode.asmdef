@@ -1,18 +1,14 @@
 {
-  "name": "Krugos.Tests.EditMode",
-  "rootNamespace": "Krugos.Tests.EditMode",
+  "name": "Krugos.Tests.PlayMode",
+  "rootNamespace": "Krugos.Tests.PlayMode",
   "references": [
     "Krugos.Domain",
     "Krugos.Application",
-    "Krugos.Infrastructure",
     "Krugos.Presentation",
     "Krugos.Bootstrap",
-    "UnityEngine.TestRunner",
-    "UnityEditor.TestRunner"
+    "UnityEngine.TestRunner"
   ],
-  "includePlatforms": [
-    "Editor"
-  ],
+  "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
   "overrideReferences": true,

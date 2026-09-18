@@ -1,0 +1,37 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="SudokuGameplay.uss" />
+    <ui:VisualElement name="screen" class="screen">
+        <ui:VisualElement class="gameplay">
+            <ui:VisualElement class="header">
+                <ui:Label text="KRUGOS" class="brand" />
+                <ui:Button name="restart" text="Restart" class="restart" />
+            </ui:VisualElement>
+            <ui:VisualElement class="hud">
+                <ui:VisualElement class="hud-group">
+                    <ui:Label text="LIVES" class="caption" />
+                    <ui:Label name="lives" class="hud-value" />
+                </ui:VisualElement>
+                <ui:VisualElement class="hud-group timer-group">
+                    <ui:Label name="bonus-caption" text="BONUS COUNTDOWN" class="caption" />
+                    <ui:Label name="countdown" class="hud-value" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="board" class="board" />
+            <ui:Label name="feedback" class="feedback" />
+            <ui:VisualElement class="tools">
+                <ui:Button name="notes-toggle" text="Notes · OFF" class="tool" />
+                <ui:Button name="clear" text="Clear" class="tool" />
+            </ui:VisualElement>
+            <ui:VisualElement name="animal-palette" class="animal-palette" />
+            <ui:Label text="One of each animal in every row, column and box." class="instruction" />
+        </ui:VisualElement>
+        <ui:VisualElement name="terminal-overlay" class="terminal-overlay">
+            <ui:VisualElement class="terminal-card">
+                <ui:Label text="KRUGOS" class="caption" />
+                <ui:Label name="terminal-title" class="terminal-title" />
+                <ui:Label name="terminal-detail" class="terminal-detail" />
+                <ui:Button name="terminal-restart" text="Play again" class="terminal-restart" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

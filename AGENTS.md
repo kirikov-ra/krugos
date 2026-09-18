@@ -7,8 +7,8 @@ Krugos — коммерческая мобильная 2D Sudoku с животн
 
 ## Карта репозитория
 
-- `client/` — production-проект Unity; игровой логики пока нет.
-- `client/Assets/Krugos/` — Domain, Application, Infrastructure, Presentation, Editor, Tests.
+- `client/` — production-проект Unity с первым playable Sudoku (KRG-007).
+- `client/Assets/Krugos/` — Domain, Application, Infrastructure, Presentation, Bootstrap, Editor, Tests, Scenes.
 - `docs/architecture/FOUNDATION.md` — принятые решения, команды проверок и ограничения окружения.
 - `tools/Validate-Foundation.ps1` — проверка структуры без запуска Unity.
 - `src/`, `public/`, корневые npm/Vite/TypeScript-файлы и `README.md` — прежний React/Phaser-прототип. Сохранять на месте; не переносить в `client/`.
@@ -21,14 +21,19 @@ Krugos — коммерческая мобильная 2D Sudoku с животн
 Application    -> Domain
 Infrastructure -> Application, Domain
 Presentation   -> Application, Domain, UnityEngine
-Editor         -> UnityEditor (только Editor)
-Tests.EditMode -> Domain, Application, Infrastructure, Unity Test Framework (только Editor)
+Bootstrap      -> Presentation, Infrastructure, Application, Domain, UnityEngine
+Editor         -> Bootstrap, UnityEditor (только Editor)
+Tests.EditMode -> Domain, Application, Infrastructure, Presentation, Bootstrap, Unity Test Framework (только Editor)
+Tests.PlayMode -> Domain, Application, Presentation, Bootstrap, Unity Test Framework (только тесты)
 ```
 
 Domain **не должен зависеть от UnityEngine или любых Unity-сборок**.
 Application также остаётся обычным C# без Unity. Обратные ссылки на внешние
 слои запрещены. Границы задаются `.asmdef`; не обходить их предопределёнными
 сборками, DLL или изменением `noEngineReferences`.
+Bootstrap — только composition root: ни один нижний runtime-слой не ссылается
+на него; Presentation не ссылается на Infrastructure. Playable entry point:
+`client/Assets/Krugos/Scenes/SudokuGameplay.unity`.
 
 ## Правила работы
 
